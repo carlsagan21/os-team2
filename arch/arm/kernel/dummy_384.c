@@ -13,6 +13,6 @@
  */
 int sys_dummy_384(void) /* 0 <= degree < 360 */
 {
-	printk("[soo] sys_dummy_384");
+	printk("[soo] sys_dummy_384\n");
 	return 0;
 };

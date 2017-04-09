@@ -14,6 +14,6 @@
  */
 int sys_rotunlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 180 */
 {
-	printk("[soo] rotunlock_read");
+	printk("[soo] sys_rotunlock_read\n");
 	return 0;
 };

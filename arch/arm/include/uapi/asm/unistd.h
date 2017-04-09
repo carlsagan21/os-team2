@@ -407,6 +407,9 @@
 #define __NR_kcmp			(__NR_SYSCALL_BASE+378)
 #define __NR_finit_module		(__NR_SYSCALL_BASE+379)
 #define __NR_set_rotation		(__NR_SYSCALL_BASE+380)
+#define __NR_rotlock_read		(__NR_SYSCALL_BASE+381)
+#define __NR_rotlock_write		(__NR_SYSCALL_BASE+382)
+#define __NR_rotunlock_read		(__NR_SYSCALL_BASE+383)
 
 
 /*

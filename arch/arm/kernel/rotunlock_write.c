@@ -14,6 +14,6 @@
  */
 int sys_rotunlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= degree + range */
 {
-	printk("[soo] rotunlock_write");
+	printk("[soo] sys_rotunlock_write\n");
 	return 0;
 };

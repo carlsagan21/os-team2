@@ -13,6 +13,6 @@
  */
 int sys_set_rotation(int degree) /* 0 <= degree < 360 */
 {
-	printk("[soo] sys_set_rotation");
+	printk("[soo] sys_set_rotation\n");
 	return 0;
 };
