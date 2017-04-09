@@ -98,3 +98,5 @@ image.tar
 modules.img
 zImage
 !.cmslab-os-project-root
+
+*.h.gch
