@@ -850,7 +850,7 @@ asmlinkage long sys_set_rotation(int degree);
 asmlinkage long sys_rotlock_read(int degree, int range);
 asmlinkage long sys_rotlock_write(int degree, int range);
 asmlinkage long sys_rotunlock_read(int degree, int range);
-asmlinkage long sys_dummy_384();
-asmlinkage long sys_dummy_385();
+asmlinkage long sys_dummy_384(void);
+asmlinkage long sys_dummy_385(void);
 asmlinkage long sys_rotunlock_write(int degree, int range);
 #endif

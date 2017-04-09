@@ -11,7 +11,7 @@
  * sets current device rotation in the kernel.
  * syscall number 380 (you may want to check this number!)
  */
-int sys_dummy_384() /* 0 <= degree < 360 */
+int sys_dummy_384(void) /* 0 <= degree < 360 */
 {
 	printk("[soo] sys_dummy_384");
 	return 0;
