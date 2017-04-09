@@ -99,4 +99,5 @@ modules.img
 zImage
 !.cmslab-os-project-root
 
+# Soo
 *.h.gch
