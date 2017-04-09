@@ -24,7 +24,8 @@ dmesg
 ## if you recompile test
 -	build && flash && arm-linux-gnueabi-gcc -I./include test/test.c -o test/test && console
 
-
+-	root
+- tizen
 -	direct_set_debug.sh --sdb-set
 -	ctl+a d
 
