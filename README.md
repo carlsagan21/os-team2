@@ -15,14 +15,14 @@ dmesg
 ---
 
 ## test already perfect
--	build && flash && arm-linux-gnueabi-gcc -I./include test/test.c -o test/test && console
+-	build && flash && console
 -	root
 -	tizen
 -	./test/test && dmesg
 
 
 ## if you recompile test
--	build && flash && arm-linux-gnueabi-gcc -I./include test/test.c -o test/test && console
+-	build && arm-linux-gnueabi-gcc -I./include test/test.c -o test/test && flash && console
 
 -	root
 - tizen
