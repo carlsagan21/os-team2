@@ -24,6 +24,6 @@ int sys_set_rotation(int degree) /* 0 <= degree < 360 */
 	// rot = (struct rotation *)kmalloc(sizeof(struct rotation), GFP_KERNEL);
 
 	// if (k_buf == NULL) /* kmalloc 은 NULL 로 제대로 되었는지 여부 판단 */
-	// 	return -ENOMEM;
+	// return -ENOMEM;
 	return 0;
 };
