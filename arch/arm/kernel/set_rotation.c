@@ -1,5 +1,5 @@
 // #include <linux/unistd.h>
-#include <linux/kernel.h>
+#include <linux/kernel.h> // 지우면 불완전하게나마 lint 사용가능
 #include <linux/rotation.h>
 // #include <linux/sched.h>
 // #include <linux/list.h>
@@ -25,6 +25,5 @@ int sys_set_rotation(int degree) /* 0 <= degree < 360 */
 
 	// if (k_buf == NULL) /* kmalloc 은 NULL 로 제대로 되었는지 여부 판단 */
 	// 	return -ENOMEM;
-
 	return 0;
 };
