@@ -1,5 +1,6 @@
 // #include <linux/unistd.h>
 #include <linux/kernel.h>
+#include <linux/rotation.h>
 // #include <linux/sched.h>
 // #include <linux/list.h>
 // #include <linux/cred.h> /* for task_uid() */
@@ -15,5 +16,11 @@
 int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 180 */
 {
 	printk("[soo] sys_rotlock_read\n");
+	struct rotlock_t *lock = (struct rotlock_t *)kmalloc(sizeof(struct rotlock_t), GFP_KERNEL);
+	if (k_buf == NULL) /* kmalloc 은 NULL 로 제대로 되었는지 여부 판단 */
+		return -ENOMEM;
+
+	
+
 	return 0;
 };

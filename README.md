@@ -15,7 +15,8 @@
 -   build && flash && console
 -   root
 -   tizen
--   ./test/test && dmesg
+-   ./test/rotd
+-    dmesg | grep degree
 
 
 ## if you recompile test
