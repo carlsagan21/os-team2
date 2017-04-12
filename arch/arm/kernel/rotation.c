@@ -12,6 +12,19 @@ LIST_HEAD(pending_lh);
 LIST_HEAD(wait_read_lh);
 LIST_HEAD(wait_write_lh);
 LIST_HEAD(aquired_lh);
+
+int is_range_contains_rotation(int degree, int range, int rot)
+{
+	int a = degree - range;
+	int b = degree + range;
+
+	int rot_minus = rot - 360;
+	int rot_plus = rot + 360;
+
+	if( (a<rot & rot<b) | (a<rot_minus & rot_minus<b) | (a<rot_plus & rot_plus<b)) return 1;
+	else return 0;
+}
+
 // struct list_head pending_lh;
 // struct list_head wait_read_lh;
 // struct list_head wait_write_lh;
