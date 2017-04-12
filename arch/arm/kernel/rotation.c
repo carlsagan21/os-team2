@@ -79,12 +79,61 @@ int waiting_list_refresh(void) { // reconstruct pending_lh, wait_read_lh, wait_w
   // acquire 는 안돈다
   return 0;
 };
-// int wl_acquire(void) {
-// return 0;
-// };
-// int rl_acquire(void) {
-// return 0;
-// };
+
+
+int waitingLockAcquireLock(rotlock_t *waiting_lock,acquired_lock){
+  /*
+   * Check whether degree/range of waiting_lock_node overlaps with that of acquired_lock
+   * if not overlapped -> 1 , else -> 0
+   * Regarding Reader Case, reader should look at acquired_lock_list if there is writer lock which has same degree/range
+   * Writer Case You don't need to
+   */
+
+  //Reader Case
+  if(waiting_lock->type==0){
+    if(acquired_lock->type==0) return 1;
+    else return is_not_overlapped(waiting_lock->degree,waiting_lock->range,acquired_lock->degree,acquired_lock->range);
+  }
+  //Writer Case
+  else  return is_not_overlapped(waiting_lock->degree,waiting_lock->range,acquired_lock->degree,acquired_lock->range);
+};
+
+ int wl_acquire(void) {
+   rotlock_t *waiting_lock;
+   rotlock_t *waiting_safe_lock;
+   rotlock_t *acquired_lock;
+   rotlock_t *acquired_safe_lock;
+
+   list_for_each_entry_safe(waiting_lock,waiting_safe_lock,&wait_write_lh,list_node){
+     list_for_each_entry_safe(acquired_lock,acquired_safe_lock,&acquired_lh,list_node){
+       if(waitingLockAcquireLock(waiting_lock,acquired_lock)==1){
+         //remove from waiting list and append to acquired lock list
+         list_move_tail(&acquired_lh,waiting_lock);
+         //Finish procedure
+         return 0;
+       }
+     }
+   }
+
+   return 0;
+ };
+
+ int rl_acquire(void){
+  rotlock_t *waiting_lock;
+  rotlock_t *waiting_safe_lock;
+  rotlock_t *acquired_lock;
+  rotlock_t *acquired_safe_lock;
+
+  list_for_each_entry_safe(waiting_lock,waiting_safe_lock,&wait_write_lh,list_node){
+    list_for_each_entry_safe(acquired_lock,acquired_safe_lock,&acquired_lh,list_node){
+      if(waitingLockAcquireLock(waiting_lock,acquired_lock)==1){
+        list_move_tail(&acquired_lh,waiting_lock);
+      }
+    }
+  }
+
+  return 0;
+};
 
 // int exit_rotlock(pid_t pid) {
 // return 0;
