@@ -27,8 +27,14 @@ int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 1
 	p_new_lock->degree = degree;
 	p_new_lock->range = range;
 	p_new_lock->pid = task_pid_nr(current);
-	INIT_LIST_HEAD(&(p_new_lock->pending_lh));
-	list_add(&(p_new_lock->pending_lh), &pending_lh);
+	INIT_LIST_HEAD(&(p_new_lock->list_node));
+	list_add(&(p_new_lock->list_node), &pending_lh); // 일단 pending 으로 보냄
+	p_new_lock->status = PENDING;
+
+	// 경우나누기
+	// call refresh
+	waiting_list_refresh()
+
 
 	// rotlock_t new_lock2;
 	//
@@ -40,16 +46,28 @@ int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 1
 	// list_add(&(new_lock2.pending_lh), &pending_lh);
 	// list_add(&(new_lock.wait_read_lh), &wait_read_lh);
 	// list_add(&(new_lock.wait_write_lh), &wait_write_lh);
-	// list_add(&(new_lock.aquired_lh), &aquired_lh);
+	// list_add(&(new_lock.acquired_lh), &acquired_lh);
 	// INIT_LIST_HEAD(&(new_lock.pending_lh));
 	// INIT_LIST_HEAD(&(new_lock.wait_read_lh));
 	// INIT_LIST_HEAD(&(new_lock.wait_write_lh));
-	// INIT_LIST_HEAD(&(new_lock.aquired_lh));
+	// INIT_LIST_HEAD(&(new_lock.acquired_lh));
 	// list_add(&(new_lock->pending_lh), &(head.pending_lh));
 
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, pending_lh) {
-		printk(KERN_DEBUG "[soo] sys_rotlock_read pending list: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->aquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
+		printk(KERN_DEBUG "[soo] sys_rotlock_read pending_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
+	}
+
+	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, wait_read_lh) {
+		printk(KERN_DEBUG "[soo] sys_rotlock_read wait_read_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
+	}
+
+	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, wait_write_lh) {
+		printk(KERN_DEBUG "[soo] sys_rotlock_read wait_write_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
+	}
+
+	list_for_each_entry_safe(p_lock, p_temp_lock, &acquired_lh, acquired_lh) {
+		printk(KERN_DEBUG "[soo] sys_rotlock_read acquired_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
 	}
 
 	return 0;

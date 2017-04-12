@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include <linux/rotation.h>
 #include <linux/list.h>
 
@@ -7,19 +8,19 @@ rotation_t rotation;
 // struct list_head * pending_lh
 // struct list_head * wait_read_lh
 // struct list_head * wait_write_lh
-// struct list_head * aquired_lh
+// struct list_head * acquired_lh
 LIST_HEAD(pending_lh);
 LIST_HEAD(wait_read_lh);
 LIST_HEAD(wait_write_lh);
-LIST_HEAD(aquired_lh);
+LIST_HEAD(acquired_lh);
 // struct list_head pending_lh;
 // struct list_head wait_read_lh;
 // struct list_head wait_write_lh;
-// struct list_head aquired_lh;
+// struct list_head acquired_lh;
 // INIT_LIST_HEAD(&pending_lh);
 // INIT_LIST_HEAD(&wait_read_lh);
 // INIT_LIST_HEAD(&wait_write_lh);
-// INIT_LIST_HEAD(&aquired_lh);
+// INIT_LIST_HEAD(&acquired_lh);
 // struct list_head pending_lh = { &(pending_lh), &(pending_lh) }
 // rotlock_t head = {
 // 	.type = HEAD_LOCK, // -1: head, 0: read, 1: write
@@ -29,17 +30,38 @@ LIST_HEAD(aquired_lh);
 // 	.pending_lh = {NULL, NULL},
 // 	.wait_read_lh = {NULL, NULL},
 // 	.wait_write_lh = {NULL, NULL},
-// 	.aquired_lh = {NULL, NULL}
+// 	.acquired_lh = {NULL, NULL}
 // };
+int is_range_contains_rotation(int degree, int range, int rotation) {
 
-// int waiting_list_refresh(void) { // reconstruct pending_lh, wait_read_lh, wait_write_lh
-// list_for_each_entry_safe(type *rotlock_t, head) {
-// //pending_lh
-// // wait_read_lh
-// // wait_write_lh
-// }
-// return 0;
-// };
+  return 0;
+};
+
+rotlock_t *p_lock;
+rotlock_t *p_temp_lock;
+
+int waiting_list_refresh(void) { // reconstruct pending_lh, wait_read_lh, wait_write_lh
+  list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, pending_lh) {
+    // range 가 포함하면, read / write
+    if (is_range_contains_rotation(p_lock->degree, p_lock->range, rotation)) {
+      if (p_lock->type == READ_LOCK) {
+
+      } else if (p_lock->type == WRITE_LOCK) {
+
+      } else {
+        printk(KERN_DEBUG "[soo] waiting_list_refresh: invalid type")
+      }
+    }
+  }
+  list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, wait_read_lh) {
+
+  }
+  list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, wait_write_lh) {
+
+  }
+  // acquire 는 안돈다
+  return 0;
+};
 // int wl_acquire(void) {
 // return 0;
 // };
