@@ -1,4 +1,4 @@
-#include <sys/types.h>
+#include <linux/types.h>
 #include <linux/list.h>
 
 // type
@@ -24,6 +24,11 @@ typedef struct rotlock_t { // task_struct
 } rotlock_t;
 
 extern rotlock_t head;
+
+extern struct list_head pending_lh;
+extern struct list_head wait_read_lh;
+extern struct list_head wait_write_lh;
+extern struct list_head aquired_lh;
 
 // struct rotlock_list_node_t {
 // struct rotlock_t lock;
