@@ -102,3 +102,4 @@ zImage
 # Soo
 *.h.gch
 test/test
+test/rotd

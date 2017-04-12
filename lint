@@ -1,0 +1,3 @@
+#!/bin/sh
+
+scripts/checkpatch.pl --max-line-length=200 -f arch/arm/kernel/*rot*.c include/linux/rotation.h
