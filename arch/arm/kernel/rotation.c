@@ -32,6 +32,19 @@ LIST_HEAD(acquired_lh);
 // 	.wait_write_lh = {NULL, NULL},
 // 	.acquired_lh = {NULL, NULL}
 // };
+int is_unlock_match(rotlock_t *lock1, int type, int degree, int range, int pid) {
+	if (
+		(lock1->type == type) &&
+		(lock1->degree == degree) &&
+		(lock1->range == range) &&
+		(lock1->pid == pid)
+	) {
+		return 1;
+	} else {
+		return 0;
+	}
+}
+
 int is_range_contains_rotation(int degree, int range, int rotation) {
   int a = degree - range;
   int b = degree + range;
@@ -72,24 +85,24 @@ rotlock_t *p_temp_lock;
 int waiting_list_refresh(void) { // reconstruct pending_lh, wait_read_lh, wait_write_lh
   list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
     // range 가 포함하면, read / write
-    if (is_range_contains_rotation(p_lock->degree, p_lock->range, rotation)) {
+    if (is_range_contains_rotation(p_lock->degree, p_lock->range, rotation.degree)) {
       if (p_lock->type == READ_LOCK) {
-        list_move(&(p_lock->list_node), &wait_read_lh);
+        list_move_tail(&(p_lock->list_node), &wait_read_lh);
       } else if (p_lock->type == WRITE_LOCK) {
-        list_move(&(p_lock->list_node), &wait_write_lh);
+        list_move_tail(&(p_lock->list_node), &wait_write_lh);
       } else {
-        printk(KERN_DEBUG "[soo] waiting_list_refresh: invalid type")
+        printk(KERN_DEBUG "[soo] waiting_list_refresh: invalid type");
       }
     }
   }
   list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, list_node) {
-    if (!is_range_contains_rotation(p_lock->degree, p_lock->range, rotation)) {
-      list_move(&(p_lock->list_node), &pending_lh);
+    if (!is_range_contains_rotation(p_lock->degree, p_lock->range, rotation.degree)) {
+      list_move_tail(&(p_lock->list_node), &pending_lh);
     }
   }
   list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, list_node) {
-    if (!is_range_contains_rotation(p_lock->degree, p_lock->range, rotation)) {
-      list_move(&(p_lock->list_node), &pending_lh);
+    if (!is_range_contains_rotation(p_lock->degree, p_lock->range, rotation.degree)) {
+      list_move_tail(&(p_lock->list_node), &pending_lh);
     }
   }
   // acquire 는 안돈다

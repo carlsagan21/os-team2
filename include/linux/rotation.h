@@ -21,8 +21,8 @@ typedef struct rotlock_t { // task_struct
 	int degree;
 	int range;
 	pid_t pid;
-	struct list_head list_node;
 	int status;
+	struct list_head list_node;
 } rotlock_t;
 
 // extern rotlock_t head;
