@@ -32,10 +32,18 @@ LIST_HEAD(acquired_lh);
 // 	.wait_write_lh = {NULL, NULL},
 // 	.acquired_lh = {NULL, NULL}
 // };
-int is_range_contains_rotation(int degree, int range, int rotation) {
-  
-  return 0;
-};
+int is_range_contains_rotation(int degree, int range, int rotation)
+{
+        int a = degree - range;
+        int b = degree + range;
+
+        int rot_minus = rotation - 360;
+        int rot_plus = rotation + 360;
+
+        if( (a<rotation & rotation <b) | (a<rot_minus & rot_minus<b) | (a<rot_plus & rot_plus<b)) return 1;
+        else return 0;
+}
+
 
 rotlock_t *p_lock;
 rotlock_t *p_temp_lock;
