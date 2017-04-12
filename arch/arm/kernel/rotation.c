@@ -33,7 +33,7 @@ LIST_HEAD(acquired_lh);
 // 	.acquired_lh = {NULL, NULL}
 // };
 int is_range_contains_rotation(int degree, int range, int rotation) {
-
+  
   return 0;
 };
 
@@ -45,9 +45,9 @@ int waiting_list_refresh(void) { // reconstruct pending_lh, wait_read_lh, wait_w
     // range 가 포함하면, read / write
     if (is_range_contains_rotation(p_lock->degree, p_lock->range, rotation)) {
       if (p_lock->type == READ_LOCK) {
-
+        list_move(&(p_lock->list_node), &wait_read_lh);
       } else if (p_lock->type == WRITE_LOCK) {
-
+        list_move(&(p_lock->list_node), &wait_write_lh);
       } else {
         printk(KERN_DEBUG "[soo] waiting_list_refresh: invalid type")
       }
