@@ -7,36 +7,80 @@
 #include <unistd.h>
 
 int main() {
-	int res;
-	res = syscall(__NR_set_rotation, 0);
-	if (res < 0) {
-		printf("Fail to run syscall(__NR_set_rotation): %d\n", res);
-		return -1;
-	}
+	// int res;
+	// res = syscall(__NR_set_rotation, 0);
+	// if (res < 0) {
+	// 	printf("Fail to run syscall(__NR_set_rotation): %d\n", res);
+	// 	return -1;
+	// }
+	//
+	// res = syscall(__NR_rotlock_read, 0, 0);
+	// if (res < 0) {
+	// 	printf("Fail to run syscall(__NR_rotlock_read): %d\n", res);
+	// 	return -1;
+	// }
+	//
+	// res = syscall(__NR_rotlock_write, 0, 0);
+	// if (res < 0) {
+	// 	printf("Fail to run syscall(__NR_rotlock_write): %d\n", res);
+	// 	return -1;
+	// }
+	//
+	// res = syscall(__NR_rotunlock_read, 0, 0);
+	// if (res < 0) {
+	// 	printf("Fail to run syscall(__NR_rotunlock_read): %d\n", res);
+	// 	return -1;
+	// }
+	//
+	// res = syscall(__NR_rotunlock_write, 0, 0);
+	// if (res < 0) {
+	// 	printf("Fail to run syscall(__NR_rotunlock_write): %d\n", res);
+	// 	return -1;
+	// }
 
-	res = syscall(__NR_rotlock_read, 0, 0);
-	if (res < 0) {
-		printf("Fail to run syscall(__NR_rotlock_read): %d\n", res);
-		return -1;
-	}
+	printf("read pending\n");
+	syscall(__NR_set_rotation, 0);
+	syscall(__NR_rotlock_read, 45, 10);
+	syscall(__NR_rotunlock_read, 45, 10);
 
-	res = syscall(__NR_rotlock_write, 0, 0);
-	if (res < 0) {
-		printf("Fail to run syscall(__NR_rotlock_write): %d\n", res);
-		return -1;
-	}
+	printf("write pending\n");
+	syscall(__NR_set_rotation, 0);
+	syscall(__NR_rotlock_read, 45, 10);
+	syscall(__NR_rotunlock_read, 45, 10);
 
-	res = syscall(__NR_rotunlock_read, 0, 0);
-	if (res < 0) {
-		printf("Fail to run syscall(__NR_rotunlock_read): %d\n", res);
-		return -1;
-	}
+	printf("read aquire\n");
+	syscall(__NR_set_rotation, 45);
+	syscall(__NR_rotlock_read, 45, 10);
+	syscall(__NR_rotunlock_read, 45, 10);
 
-	res = syscall(__NR_rotunlock_write, 0, 0);
-	if (res < 0) {
-		printf("Fail to run syscall(__NR_rotunlock_write): %d\n", res);
-		return -1;
-	}
+	printf("write aquire\n");
+	syscall(__NR_set_rotation, 45);
+	syscall(__NR_rotlock_write, 45, 10);
+	syscall(__NR_rotunlock_write, 45, 10);
+
+	printf("write aquire waiting\n");
+	syscall(__NR_set_rotation, 45);
+	syscall(__NR_rotlock_write, 45, 10); // aquire
+	syscall(__NR_rotlock_write, 50, 10); // waiting
+	syscall(__NR_rotunlock_write, 50, 10); // waiting unlock
+	syscall(__NR_rotlock_read, 50, 10); // waiting
+	syscall(__NR_rotunlock_write, 50, 10); // waiting unlock
+	syscall(__NR_rotunlock_write, 45, 10); // aquire unlock
+
+	syscall(__NR_rotlock_read, 45, 10); // aquire
+	syscall(__NR_rotlock_write, 50, 10); // waiting
+	syscall(__NR_rotunlock_write, 50, 10); // waiting unlock
+	syscall(__NR_rotlock_read, 50, 10); // aquire
+	syscall(__NR_rotunlock_write, 50, 10); // aquire unlock
+	syscall(__NR_rotunlock_read, 45, 10); // aquire
+
+	syscall(__NR_rotlock_read, 45, 10); // aquire
+	syscall(__NR_rotlock_write, 50, 10); // waiting
+	syscall(__NR_rotlock_read, 50, 10); // waiting(starv policy)
+	syscall(__NR_rotunlock_write, 50, 10); // waiting unlock
+	// read lock aquire
+	syscall(__NR_rotunlock_read, 50, 10); // aquire release
+	syscall(__NR_rotunlock_read, 45, 10); // aquire release
 
 	printf("Test Success.\n");
 
