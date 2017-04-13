@@ -152,19 +152,22 @@ int wait_write_to_acquire(void)
 
 int wait_read_to_acquire(void)
 {
-	list_for_each_entry_safe(p_waiting_lock, p_waiting_temp_lock, &wait_read_lh, list_node) {
-		// 어콰이어 리스트를 다 돌고도 문제가 없으면 넣어줘야. 하나하나와 비교하는거 아님. flag방식.
-		int is_acquirable = 1;
+	// printk("[soo] list_empty(&wait_write_lh) %d\n", list_empty(&wait_write_lh));
+	if (list_empty(&wait_write_lh)) {
+		list_for_each_entry_safe(p_waiting_lock, p_waiting_temp_lock, &wait_read_lh, list_node) {
+			// 어콰이어 리스트를 다 돌고도 문제가 없으면 넣어줘야. 하나하나와 비교하는거 아님. flag방식.
+			int is_acquirable = 1;
 
-		list_for_each_entry_safe(p_acquired_lock, p_acquired_safe_lock, &acquired_lh, list_node) {
-			if (!is_waiting_lock_acquirable_compare_to_acquired_lock(p_waiting_lock, p_acquired_lock)) {
-				is_acquirable = 0;
-				break;
+			list_for_each_entry_safe(p_acquired_lock, p_acquired_safe_lock, &acquired_lh, list_node) {
+				if (!is_waiting_lock_acquirable_compare_to_acquired_lock(p_waiting_lock, p_acquired_lock)) {
+					is_acquirable = 0;
+					break;
+				}
 			}
-		}
-		if (is_acquirable) {
-			list_move_tail(&(p_waiting_lock->list_node), &acquired_lh);
-			// break; // FIXME 필요한가? wait_write_lh 에서 여러개가 acquired 될 경우는 없나?
+			if (is_acquirable) {
+				list_move_tail(&(p_waiting_lock->list_node), &acquired_lh);
+				// break; // FIXME 필요한가? wait_write_lh 에서 여러개가 acquired 될 경우는 없나?
+			}
 		}
 	}
 
@@ -176,7 +179,7 @@ int delete_lock(int type, int degree, int range, int pid) {
 
 	if (!is_deleted) {
 		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &pending_lh, list_node) {
-			if (__is_unlock_match(p_lock, READ_LOCK, degree, range, pid)) {
+			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
 				list_del(&(p_lock->list_node)); // 끝내야. flag 를 쓰던가.
 				kfree(p_lock);
 				is_deleted = 1;
@@ -186,7 +189,7 @@ int delete_lock(int type, int degree, int range, int pid) {
 
 	if (!is_deleted) {
 		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &wait_read_lh, list_node) {
-			if (__is_unlock_match(p_lock, READ_LOCK, degree, range, pid)) {
+			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
 				list_del(&(p_lock->list_node));
 				kfree(p_lock);
 				is_deleted = 1;
@@ -196,7 +199,7 @@ int delete_lock(int type, int degree, int range, int pid) {
 
 	if (!is_deleted) {
 		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &wait_write_lh, list_node) {
-			if (__is_unlock_match(p_lock, READ_LOCK, degree, range, pid)) {
+			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
 				list_del(&(p_lock->list_node));
 				kfree(p_lock);
 				is_deleted = 1;
@@ -206,7 +209,7 @@ int delete_lock(int type, int degree, int range, int pid) {
 
 	if (!is_deleted) {
 		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &acquired_lh, list_node) {
-			if (__is_unlock_match(p_lock, READ_LOCK, degree, range, pid)) {
+			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
 				list_del(&(p_lock->list_node));
 				kfree(p_lock);
 				is_deleted = 1;

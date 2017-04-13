@@ -14,8 +14,8 @@
  */
 int sys_rotunlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 180 */
 {
-	rotlock_t *p_lock;
-	rotlock_t *p_temp_lock;
+	// rotlock_t *p_lock;
+	// rotlock_t *p_temp_lock;
 	int pid;
 
 	printk(KERN_DEBUG "[soo] sys_rotunlock_read\n");

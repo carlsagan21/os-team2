@@ -16,8 +16,8 @@
 int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= degree + range */
 {
 	rotlock_t *p_new_lock;
-	rotlock_t *p_lock;
-	rotlock_t *p_temp_lock;
+	// rotlock_t *p_lock;
+	// rotlock_t *p_temp_lock;
 
 	printk(KERN_DEBUG "[soo] sys_rotlock_write\n");
 

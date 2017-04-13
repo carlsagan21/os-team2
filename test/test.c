@@ -46,7 +46,7 @@ int main() {
 	printf("write pending\n");
 	syscall(__NR_set_rotation, 0);
 	syscall(__NR_rotlock_write, 45, 10);
-	syscall(__NR_rotunlock_read, 45, 10);
+	syscall(__NR_rotunlock_write, 45, 10);
 
 	printf("read aquire\n");
 	syscall(__NR_set_rotation, 45);
@@ -72,7 +72,7 @@ int main() {
 	syscall(__NR_rotunlock_write, 50, 10); // waiting unlock
 	syscall(__NR_rotlock_read, 50, 10); // aquire
 	syscall(__NR_rotunlock_read, 50, 10); // aquire unlock
-	syscall(__NR_rotunlock_read, 45, 10); // aquire
+	syscall(__NR_rotunlock_read, 45, 10); // aquire unlock
 
 	syscall(__NR_rotlock_read, 45, 10); // aquire
 	syscall(__NR_rotlock_write, 50, 10); // waiting
