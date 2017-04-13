@@ -18,7 +18,7 @@ int sys_set_rotation(int degree) /* 0 <= degree < 360 */
 		return -EINVAL;
 
 	rotation.degree = degree;
-	printk("[soo] sys_set_rotation: %d, %d\n", rotation.degree, task_pid_nr(current));
+	printk(KERN_DEBUG "[soo] sys_set_rotation: %d, %d\n", rotation.degree, task_pid_nr(current));
 
 	return 0;
 };

@@ -15,14 +15,15 @@
  */
 int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= degree + range */
 {
-	printk("[soo] sys_rotlock_write\n");
-	rotlock_t *p_new_lock = kmalloc(sizeof(rotlock_t), GFP_KERNEL);
-
-	if (p_new_lock == NULL) /* kmalloc 은 NULL 로 제대로 되었는지 여부 판단 */
-		return -ENOMEM;
-
+	rotlock_t *p_new_lock;
 	rotlock_t *p_lock;
 	rotlock_t *p_temp_lock;
+
+	printk(KERN_DEBUG "[soo] sys_rotlock_write\n");
+
+	p_new_lock = kmalloc(sizeof(rotlock_t), GFP_KERNEL);
+	if (p_new_lock == NULL) /* kmalloc 은 NULL 로 제대로 되었는지 여부 판단 */
+		return -ENOMEM;
 
 	p_new_lock->type = WRITE_LOCK;
 	p_new_lock->degree = degree;
@@ -32,22 +33,30 @@ int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= 
 	list_add_tail(&(p_new_lock->list_node), &pending_lh); // 일단 pending 으로 보냄
 	p_new_lock->status = PENDING;
 
-	waiting_list_refresh();
+	refresh_pending_waiting_lists();
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
-		printk(KERN_DEBUG "[soo] pending_lh: %d, %d, %d, %d, %d, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status, &(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
+		printk(KERN_DEBUG "[soo] pending_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, list_node) {
-		printk(KERN_DEBUG "[soo] wait_read_lh: %d, %d, %d, %d, %d, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status, &(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
+		printk(KERN_DEBUG "[soo] wait_read_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, list_node) {
-		printk(KERN_DEBUG "[soo] wait_write_lh: %d, %d, %d, %d, %d, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status, &(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
+		printk(KERN_DEBUG "[soo] wait_write_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &acquired_lh, list_node) {
-		printk(KERN_DEBUG "[soo] acquired_lh: %d, %d, %d, %d, %d, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status, &(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
+		printk(KERN_DEBUG "[soo] acquired_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
 	return 0;
