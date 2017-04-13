@@ -152,7 +152,6 @@ int wait_write_to_acquire(void)
 
 int wait_read_to_acquire(void)
 {
-	// printk("[soo] list_empty(&wait_write_lh) %d\n", list_empty(&wait_write_lh));
 	if (list_empty(&wait_write_lh)) {
 		list_for_each_entry_safe(p_waiting_lock, p_waiting_temp_lock, &wait_read_lh, list_node) {
 			// 어콰이어 리스트를 다 돌고도 문제가 없으면 넣어줘야. 하나하나와 비교하는거 아님. flag방식.
