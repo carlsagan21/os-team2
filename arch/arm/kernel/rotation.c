@@ -1,6 +1,7 @@
 #include <linux/kernel.h>
 #include <linux/rotation.h>
 #include <linux/list.h>
+#include <linux/slab.h> /* for kmalloc(), GFP_KERNEL. linux/gfp 따로 include 안해도 됨. */
 
 rotation_t rotation;
 
@@ -9,7 +10,7 @@ LIST_HEAD(wait_read_lh);
 LIST_HEAD(wait_write_lh);
 LIST_HEAD(acquired_lh);
 
-int is_unlock_match(rotlock_t *lock1, int type, int degree, int range, int pid)
+int __is_unlock_match(rotlock_t *lock1, int type, int degree, int range, int pid)
 {
 	if (
 		(lock1->type == type) &&
@@ -151,24 +152,99 @@ int wait_write_to_acquire(void)
 
 int wait_read_to_acquire(void)
 {
-	list_for_each_entry_safe(p_waiting_lock, p_waiting_temp_lock, &wait_read_lh, list_node) {
-		// 어콰이어 리스트를 다 돌고도 문제가 없으면 넣어줘야. 하나하나와 비교하는거 아님. flag방식.
-		int is_acquirable = 1;
+	// printk("[soo] list_empty(&wait_write_lh) %d\n", list_empty(&wait_write_lh));
+	if (list_empty(&wait_write_lh)) {
+		list_for_each_entry_safe(p_waiting_lock, p_waiting_temp_lock, &wait_read_lh, list_node) {
+			// 어콰이어 리스트를 다 돌고도 문제가 없으면 넣어줘야. 하나하나와 비교하는거 아님. flag방식.
+			int is_acquirable = 1;
 
-		list_for_each_entry_safe(p_acquired_lock, p_acquired_safe_lock, &acquired_lh, list_node) {
-			if (!is_waiting_lock_acquirable_compare_to_acquired_lock(p_waiting_lock, p_acquired_lock)) {
-				is_acquirable = 0;
-				break;
+			list_for_each_entry_safe(p_acquired_lock, p_acquired_safe_lock, &acquired_lh, list_node) {
+				if (!is_waiting_lock_acquirable_compare_to_acquired_lock(p_waiting_lock, p_acquired_lock)) {
+					is_acquirable = 0;
+					break;
+				}
 			}
-		}
-		if (is_acquirable) {
-			list_move_tail(&(p_waiting_lock->list_node), &acquired_lh);
-			// break; // FIXME 필요한가? wait_write_lh 에서 여러개가 acquired 될 경우는 없나?
+			if (is_acquirable) {
+				list_move_tail(&(p_waiting_lock->list_node), &acquired_lh);
+				// break; // FIXME 필요한가? wait_write_lh 에서 여러개가 acquired 될 경우는 없나?
+			}
 		}
 	}
 
 	return 0;
 };
+
+int delete_lock(int type, int degree, int range, int pid) {
+	int is_deleted = 0;
+
+	if (!is_deleted) {
+		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &pending_lh, list_node) {
+			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
+				list_del(&(p_lock->list_node)); // 끝내야. flag 를 쓰던가.
+				kfree(p_lock);
+				is_deleted = 1;
+			}
+		}
+	}
+
+	if (!is_deleted) {
+		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &wait_read_lh, list_node) {
+			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
+				list_del(&(p_lock->list_node));
+				kfree(p_lock);
+				is_deleted = 1;
+			}
+		}
+	}
+
+	if (!is_deleted) {
+		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &wait_write_lh, list_node) {
+			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
+				list_del(&(p_lock->list_node));
+				kfree(p_lock);
+				is_deleted = 1;
+			}
+		}
+	}
+
+	if (!is_deleted) {
+		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &acquired_lh, list_node) {
+			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
+				list_del(&(p_lock->list_node));
+				kfree(p_lock);
+				is_deleted = 1;
+			}
+		}
+	}
+
+	return 0;
+}
+
+void __print_all_lists(void) {
+	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
+		printk(KERN_DEBUG "[soo] pending_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
+	}
+
+	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, list_node) {
+		printk(KERN_DEBUG "[soo] wait_read_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
+	}
+
+	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, list_node) {
+		printk(KERN_DEBUG "[soo] wait_write_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
+	}
+
+	list_for_each_entry_safe(p_lock, p_temp_lock, &acquired_lh, list_node) {
+		printk(KERN_DEBUG "[soo] acquired_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
+	}
+}
 
 // int exit_rotlock(pid_t pid) {
 // return 0;

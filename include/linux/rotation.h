@@ -36,4 +36,8 @@ int refresh_pending_waiting_lists(void);
 int wait_write_to_acquire(void);
 int wait_read_to_acquire(void);
 
+int delete_lock(int type, int degree, int range, int pid);
+
+void __print_all_lists(void);
+
 int exit_rotlock(pid_t pid);
