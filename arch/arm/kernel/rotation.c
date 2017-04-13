@@ -29,8 +29,8 @@ int is_range_contains_rotation(int degree, int range, int rotation) {
 	int rot_minus = rotation - 360;
 	int rot_plus = rotation + 360;
 
-	if(
-		(a < rotation && rotation <b) ||
+	if (
+		(a < rotation && rotation < b) ||
 		(a < rot_minus && rot_minus < b) ||
 		(a < rot_plus && rot_plus < b)
 	)
@@ -39,20 +39,23 @@ int is_range_contains_rotation(int degree, int range, int rotation) {
 		return 0;
 }
 
-int is_not_overlaped(int deg1, int rang1, int deg2, int rang2)
-{
-				int a = (deg1-rang1)<0? (deg1-rang1)+360 : (deg1 - rang1);
-				int b = (deg1 + rang1)%360;
-				int c = (deg2-rang2)<0? (deg2-rang2)+360 : (deg2 - rang2);
-				int d = (deg2 + rang2)%360;
+int is_not_overlaped(int deg1, int rang1, int deg2, int rang2) {
+	int a = (deg1 - rang1) < 0 ? (deg1 - rang1) + 360 : (deg1 - rang1);
+	int b = (deg1 + rang1) % 360;
+	int c = (deg2 - rang2) < 0 ? (deg2 - rang2) + 360 : (deg2 - rang2);
+	int d = (deg2 + rang2) % 360;
 
-				//printf("%d,%d,%d,%d\n",a,b,c,d);
-				return	(
-								(a<b)&&
-								( (c<d && ((c<a&&d<a)||(c>a&&d>a))) || (c>d && (c>b&&d<a)))
-								)
-						||	(a>b)&&
-								(c<d && (c>b&&d<a));
+	return (
+		(a < b) &&
+		(
+			(c < d && ((c < a && d < a) || (c > a && d > a))) ||
+			(c > d && (c > b && d < a))
+		)
+	) || (
+		(a > b) &&
+		(c < d && (c > b && d < a))
+		// (c > d && (c > b && d < a))
+	);
 }
 
 
