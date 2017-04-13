@@ -2,6 +2,7 @@
 #include <linux/rotation.h>
 #include <linux/list.h>
 #include <linux/slab.h> /* for kmalloc(), GFP_KERNEL. linux/gfp 따로 include 안해도 됨. */
+#include <linux/spinlock.h>
 
 rotation_t rotation;
 
@@ -9,6 +10,9 @@ LIST_HEAD(pending_lh);
 LIST_HEAD(wait_read_lh);
 LIST_HEAD(wait_write_lh);
 LIST_HEAD(acquired_lh);
+
+DEFINE_SPINLOCK(list_iteration_spin_lock);
+unsigned long flags;
 
 int __is_unlock_match(rotlock_t *lock1, int type, int degree, int range, int pid)
 {
@@ -61,43 +65,7 @@ int __is_not_overlapped(int deg1, int rang1, int deg2, int rang2)
 	);
 }
 
-// for iteration
-rotlock_t *p_lock;
-rotlock_t *p_temp_lock;
-
-int refresh_pending_waiting_lists(void)
-{ // reconstruct pending_lh, wait_read_lh, wait_write_lh
-	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
-		// range 가 포함하면, read / write
-		if (__is_range_contains_rotation(p_lock->degree, p_lock->range, rotation.degree)) {
-			if (p_lock->type == READ_LOCK) {
-				list_move_tail(&(p_lock->list_node), &wait_read_lh);
-				p_lock->status = WAIT_READ;
-			} else if (p_lock->type == WRITE_LOCK) {
-				list_move_tail(&(p_lock->list_node), &wait_write_lh);
-				p_lock->status = WAIT_WRITE;
-			} else {
-				printk(KERN_DEBUG "[soo] refresh_pending_waiting_lists: invalid type");
-			}
-		}
-	}
-	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, list_node) {
-		if (!__is_range_contains_rotation(p_lock->degree, p_lock->range, rotation.degree)) {
-			list_move_tail(&(p_lock->list_node), &pending_lh);
-			p_lock->status = PENDING;
-		}
-	}
-	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, list_node) {
-		if (!__is_range_contains_rotation(p_lock->degree, p_lock->range, rotation.degree)) {
-			list_move_tail(&(p_lock->list_node), &pending_lh);
-			p_lock->status = PENDING;
-		}
-	}
-	return 0;
-};
-
-
-int is_waiting_lock_acquirable_compare_to_acquired_lock(rotlock_t *p_waiting_lock, rotlock_t *p_acquired_lock)
+int __is_waiting_lock_acquirable_compare_to_acquired_lock(rotlock_t *p_waiting_lock, rotlock_t *p_acquired_lock)
 {
 	/*
 	 * Check whether degree/range of waiting_lock_node overlaps with that of acquired_lock
@@ -124,6 +92,46 @@ int is_waiting_lock_acquirable_compare_to_acquired_lock(rotlock_t *p_waiting_loc
 	}
 };
 
+// for iteration
+rotlock_t *p_lock;
+rotlock_t *p_temp_lock;
+
+// reconstruct pending_lh, wait_read_lh, wait_write_lh
+int refresh_pending_waiting_lists(void)
+{
+	spin_lock_irqsave(&list_iteration_spin_lock, flags);
+
+	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
+		// range 가 포함하면, read / write
+		if (__is_range_contains_rotation(p_lock->degree, p_lock->range, rotation.degree)) {
+			if (p_lock->type == READ_LOCK) {
+				list_move_tail(&(p_lock->list_node), &wait_read_lh);
+				p_lock->status = WAIT_READ;
+			} else if (p_lock->type == WRITE_LOCK) {
+				list_move_tail(&(p_lock->list_node), &wait_write_lh);
+				p_lock->status = WAIT_WRITE;
+			} else {
+				printk(KERN_DEBUG "[soo] refresh_pending_waiting_lists: invalid type");
+			}
+		}
+	}
+	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, list_node) {
+		if (!__is_range_contains_rotation(p_lock->degree, p_lock->range, rotation.degree)) {
+			list_move_tail(&(p_lock->list_node), &pending_lh);
+			p_lock->status = PENDING;
+		}
+	}
+	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, list_node) {
+		if (!__is_range_contains_rotation(p_lock->degree, p_lock->range, rotation.degree)) {
+			list_move_tail(&(p_lock->list_node), &pending_lh);
+			p_lock->status = PENDING;
+		}
+	}
+
+	spin_unlock_irqrestore(&list_iteration_spin_lock, flags);
+	return 0;
+};
+
 rotlock_t *p_waiting_lock;
 rotlock_t *p_waiting_temp_lock;
 rotlock_t *p_acquired_lock;
@@ -131,12 +139,14 @@ rotlock_t *p_acquired_safe_lock;
 
 int wait_write_to_acquire(void)
 {
+	spin_lock_irqsave(&list_iteration_spin_lock, flags);
+
 	list_for_each_entry_safe(p_waiting_lock, p_waiting_temp_lock, &wait_write_lh, list_node) {
 		// 어콰이어 리스트를 다 돌고도 문제가 없으면 넣어줘야. 하나하나와 비교하는거 아님. flag방식.
 		int is_acquirable = 1;
 
 		list_for_each_entry_safe(p_acquired_lock, p_acquired_safe_lock, &acquired_lh, list_node) {
-			if (!is_waiting_lock_acquirable_compare_to_acquired_lock(p_waiting_lock, p_acquired_lock)) {
+			if (!__is_waiting_lock_acquirable_compare_to_acquired_lock(p_waiting_lock, p_acquired_lock)) {
 				is_acquirable = 0;
 				break;
 			}
@@ -147,18 +157,21 @@ int wait_write_to_acquire(void)
 		}
 	}
 
+	spin_unlock_irqrestore(&list_iteration_spin_lock, flags);
 	return 0;
 };
 
 int wait_read_to_acquire(void)
 {
+	spin_lock_irqsave(&list_iteration_spin_lock, flags);
+
 	if (list_empty(&wait_write_lh)) {
 		list_for_each_entry_safe(p_waiting_lock, p_waiting_temp_lock, &wait_read_lh, list_node) {
 			// 어콰이어 리스트를 다 돌고도 문제가 없으면 넣어줘야. 하나하나와 비교하는거 아님. flag방식.
 			int is_acquirable = 1;
 
 			list_for_each_entry_safe(p_acquired_lock, p_acquired_safe_lock, &acquired_lh, list_node) {
-				if (!is_waiting_lock_acquirable_compare_to_acquired_lock(p_waiting_lock, p_acquired_lock)) {
+				if (!__is_waiting_lock_acquirable_compare_to_acquired_lock(p_waiting_lock, p_acquired_lock)) {
 					is_acquirable = 0;
 					break;
 				}
@@ -170,11 +183,17 @@ int wait_read_to_acquire(void)
 		}
 	}
 
+	spin_unlock_irqrestore(&list_iteration_spin_lock, flags);
 	return 0;
 };
 
-int delete_lock(int type, int degree, int range, int pid) {
-	int is_deleted = 0;
+int delete_lock(int type, int degree, int range, int pid)
+{
+	int is_deleted;
+
+	spin_lock_irqsave(&list_iteration_spin_lock, flags);
+
+	is_deleted = 0;
 
 	if (!is_deleted) {
 		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &pending_lh, list_node) {
@@ -216,10 +235,14 @@ int delete_lock(int type, int degree, int range, int pid) {
 		}
 	}
 
+	spin_unlock_irqrestore(&list_iteration_spin_lock, flags);
 	return 0;
 }
 
-void __print_all_lists(void) {
+void __print_all_lists(void)
+{
+	spin_lock_irqsave(&list_iteration_spin_lock, flags);
+
 	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
 		printk(KERN_DEBUG "[soo] pending_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
 		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
@@ -243,6 +266,8 @@ void __print_all_lists(void) {
 		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
 		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
+
+	spin_unlock_irqrestore(&list_iteration_spin_lock, flags);
 }
 
 // int exit_rotlock(pid_t pid) {
