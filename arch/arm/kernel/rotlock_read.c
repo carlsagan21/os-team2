@@ -29,35 +29,15 @@ int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 1
 	p_new_lock->degree = degree;
 	p_new_lock->range = range;
 	p_new_lock->pid = task_pid_nr(current);
-	INIT_LIST_HEAD(&(p_new_lock->list_node)); // FIXME 없어도 될듯
+	// INIT_LIST_HEAD(&(p_new_lock->list_node)); // FIXME 없어도 될듯
 	list_add_tail(&(p_new_lock->list_node), &pending_lh); // 일단 pending 으로 보냄
 	p_new_lock->status = PENDING;
 
 	refresh_pending_waiting_lists();
+	wait_write_to_acquire();
+	wait_read_to_acquire();
 
-	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
-		printk(KERN_DEBUG "[soo] pending_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
-		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
-		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
-	}
-
-	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, list_node) {
-		printk(KERN_DEBUG "[soo] wait_read_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
-		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
-		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
-	}
-
-	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, list_node) {
-		printk(KERN_DEBUG "[soo] wait_write_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
-		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
-		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
-	}
-
-	list_for_each_entry_safe(p_lock, p_temp_lock, &acquired_lh, list_node) {
-		printk(KERN_DEBUG "[soo] acquired_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
-		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
-		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
-	}
+	__print_all_lists();
 
 	return 0;
 };
