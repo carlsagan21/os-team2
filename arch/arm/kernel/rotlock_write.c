@@ -2,7 +2,7 @@
 #include <linux/kernel.h>
 #include <linux/rotation.h>
 #include <linux/sched.h>
-// #include <linux/list.h>
+#include <linux/list.h>
 // #include <linux/cred.h> /* for task_uid() */
 #include <linux/slab.h> /* for kmalloc(), GFP_KERNEL. linux/gfp 따로 include 안해도 됨. */
 // #include <linux/uaccess.h> /* for copy_from_user, copy_to_user, strncpy */
@@ -15,46 +15,48 @@
  */
 int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= degree + range */
 {
-	rotlock_t *p_new_lock = kmalloc(sizeof(rotlock_t), GFP_KERNEL);
-
-	if (p_new_lock == NULL) /* kmalloc 은 NULL 로 제대로 되었는지 여부 판단 */
-		return -ENOMEM;
-
+	rotlock_t *p_new_lock;
 	rotlock_t *p_lock;
 	rotlock_t *p_temp_lock;
+
+	printk(KERN_DEBUG "[soo] sys_rotlock_write\n");
+
+	p_new_lock = kmalloc(sizeof(rotlock_t), GFP_KERNEL);
+	if (p_new_lock == NULL) /* kmalloc 은 NULL 로 제대로 되었는지 여부 판단 */
+		return -ENOMEM;
 
 	p_new_lock->type = WRITE_LOCK;
 	p_new_lock->degree = degree;
 	p_new_lock->range = range;
 	p_new_lock->pid = task_pid_nr(current);
-	INIT_LIST_HEAD(&(p_new_lock->pending_lh));
-	list_add(&(p_new_lock->pending_lh), &pending_lh);
-	// new_lock.pending_lh.next = &new_lock.pending_lh;
-	// new_lock.pending_lh.prev = &new_lock.pending_lh;
-	// list_add(&(new_lock.pending_lh), &pending_lh);
-	// list_add(&(new_lock.wait_read_lh), &wait_read_lh);
-	// list_add(&(new_lock.wait_write_lh), &wait_write_lh);
-	// list_add(&(new_lock.acquired_lh), &acquired_lh);
-	// INIT_LIST_HEAD(&(new_lock.pending_lh));
-	// INIT_LIST_HEAD(&(new_lock.wait_read_lh));
-	// INIT_LIST_HEAD(&(new_lock.wait_write_lh));
-	// INIT_LIST_HEAD(&(new_lock.acquired_lh));
-	// list_add(&(new_lock->pending_lh), &(head.pending_lh));
+	INIT_LIST_HEAD(&(p_new_lock->list_node)); // FIXME 없어도 될듯
+	list_add_tail(&(p_new_lock->list_node), &pending_lh); // 일단 pending 으로 보냄
+	p_new_lock->status = PENDING;
+
+	refresh_pending_waiting_lists();
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
-		printk(KERN_DEBUG "[soo] sys_rotlock_read pending_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
+		printk(KERN_DEBUG "[soo] pending_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, list_node) {
-		printk(KERN_DEBUG "[soo] sys_rotlock_read wait_read_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
+		printk(KERN_DEBUG "[soo] wait_read_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, list_node) {
-		printk(KERN_DEBUG "[soo] sys_rotlock_read wait_write_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
+		printk(KERN_DEBUG "[soo] wait_write_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &acquired_lh, list_node) {
-		printk(KERN_DEBUG "[soo] sys_rotlock_read acquired_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
+		printk(KERN_DEBUG "[soo] acquired_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
+		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
 	return 0;
