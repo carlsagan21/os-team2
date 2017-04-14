@@ -10,13 +10,13 @@
 #define WAIT_WRITE 2
 #define ACQUIRED 3
 
-typedef struct rotation_t {
+typedef struct __rotation_t {
 	int degree;
 } rotation_t;
 
 extern rotation_t rotation;
 
-typedef struct rotlock_t { // task_struct
+typedef struct __rotlock_t { // task_struct
 	int type; // 0: read, 1: write
 	int degree;
 	int range;
