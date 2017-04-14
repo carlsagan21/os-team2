@@ -16,20 +16,19 @@ int sys_rotunlock_write(int degree, int range) /* degree - range <= LOCK RANGE <
 {
 	int pid;
 
-	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
 
 	pr_debug("[soo] sys_rotunlock_write\n");
 
 	pid = task_pid_nr(current);
 
+	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
 	delete_lock(WRITE_LOCK, degree, range, pid);
-
 	refresh_pending_waiting_lists();
 	wait_write_to_acquire();
 	wait_read_to_acquire();
 
 	__print_all_lists();
-
 	mutex_unlock(&rotlock_mutex);
+
 	return 0;
 };

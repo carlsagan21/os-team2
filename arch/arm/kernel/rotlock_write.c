@@ -17,8 +17,6 @@ int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= 
 {
 	rotlock_t *p_new_lock;
 
-	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
-
 	pr_debug("[soo] sys_rotlock_write\n");
 
 	p_new_lock = kmalloc(sizeof(rotlock_t), GFP_KERNEL);
@@ -31,13 +29,14 @@ int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= 
 	p_new_lock->pid = task_pid_nr(current);
 	p_new_lock->status = PENDING;
 
+	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
 	list_add_pending(p_new_lock); // 일단 pending 으로 보냄
 	refresh_pending_waiting_lists();
 	wait_write_to_acquire();
 	wait_read_to_acquire();
 
 	__print_all_lists();
-
 	mutex_unlock(&rotlock_mutex);
+
 	return 0;
 };

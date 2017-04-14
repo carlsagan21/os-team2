@@ -14,7 +14,7 @@
  */
 int sys_set_rotation(int degree) /* 0 <= degree < 360 */
 {
-	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
+
 
 	if (degree < 0 || degree >= 360)
 		return -EINVAL;
@@ -22,12 +22,13 @@ int sys_set_rotation(int degree) /* 0 <= degree < 360 */
 	rotation.degree = degree;
 	pr_debug("[soo] sys_set_rotation: %d, %d\n", rotation.degree, task_pid_nr(current));
 
+	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
 	refresh_pending_waiting_lists();
 	wait_write_to_acquire();
 	wait_read_to_acquire();
 
 	__print_all_lists();
-
 	mutex_unlock(&rotlock_mutex);
+
 	return 0;
 };
