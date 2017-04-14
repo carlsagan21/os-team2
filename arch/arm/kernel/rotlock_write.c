@@ -16,10 +16,8 @@
 int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= degree + range */
 {
 	rotlock_t *p_new_lock;
-	// rotlock_t *p_lock;
-	// rotlock_t *p_temp_lock;
 
-	printk(KERN_DEBUG "[soo] sys_rotlock_write\n");
+	pr_debug("[soo] sys_rotlock_write\n");
 
 	p_new_lock = kmalloc(sizeof(rotlock_t), GFP_KERNEL);
 	if (p_new_lock == NULL) /* kmalloc 은 NULL 로 제대로 되었는지 여부 판단 */
@@ -29,10 +27,9 @@ int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= 
 	p_new_lock->degree = degree;
 	p_new_lock->range = range;
 	p_new_lock->pid = task_pid_nr(current);
-	// INIT_LIST_HEAD(&(p_new_lock->list_node)); // FIXME 없어도 될듯
-	list_add_tail(&(p_new_lock->list_node), &pending_lh); // 일단 pending 으로 보냄
 	p_new_lock->status = PENDING;
 
+	list_add_pending(p_new_lock); // 일단 pending 으로 보냄
 	refresh_pending_waiting_lists();
 	wait_write_to_acquire();
 	wait_read_to_acquire();

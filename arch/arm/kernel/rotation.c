@@ -96,6 +96,16 @@ int __is_waiting_lock_acquirable_compare_to_acquired_lock(rotlock_t *p_waiting_l
 rotlock_t *p_lock;
 rotlock_t *p_temp_lock;
 
+int list_add_pending(rotlock_t *p_pending_lock)
+{
+	spin_lock_irqsave(&list_iteration_spin_lock, flags);
+
+	list_add_tail(&(p_pending_lock->list_node), &pending_lh);
+
+	spin_unlock_irqrestore(&list_iteration_spin_lock, flags);
+	return 0;
+}
+
 // reconstruct pending_lh, wait_read_lh, wait_write_lh
 int refresh_pending_waiting_lists(void)
 {
@@ -111,7 +121,7 @@ int refresh_pending_waiting_lists(void)
 				list_move_tail(&(p_lock->list_node), &wait_write_lh);
 				p_lock->status = WAIT_WRITE;
 			} else {
-				printk(KERN_DEBUG "[soo] refresh_pending_waiting_lists: invalid type");
+				pr_debug("[soo] refresh_pending_waiting_lists: invalid type");
 			}
 		}
 	}
@@ -153,6 +163,7 @@ int wait_write_to_acquire(void)
 		}
 		if (is_acquirable) {
 			list_move_tail(&(p_waiting_lock->list_node), &acquired_lh);
+			p_waiting_lock->status = ACQUIRED;
 			break; // FIXME 필요한가? wait_write_lh 에서 여러개가 acquired 될 경우는 없나?
 		}
 	}
@@ -178,6 +189,7 @@ int wait_read_to_acquire(void)
 			}
 			if (is_acquirable) {
 				list_move_tail(&(p_waiting_lock->list_node), &acquired_lh);
+				p_waiting_lock->status = ACQUIRED;
 				// break; // FIXME 필요한가? wait_write_lh 에서 여러개가 acquired 될 경우는 없나?
 			}
 		}
@@ -244,25 +256,25 @@ void __print_all_lists(void)
 	spin_lock_irqsave(&list_iteration_spin_lock, flags);
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
-		printk(KERN_DEBUG "[soo] pending_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		pr_debug("[soo] pending_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
 		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
 		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, list_node) {
-		printk(KERN_DEBUG "[soo] wait_read_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		pr_debug("[soo] wait_read_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
 		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
 		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, list_node) {
-		printk(KERN_DEBUG "[soo] wait_write_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		pr_debug("[soo] wait_write_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
 		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
 		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &acquired_lh, list_node) {
-		printk(KERN_DEBUG "[soo] acquired_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
+		pr_debug("[soo] acquired_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
 		p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, p_lock->status,
 		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}

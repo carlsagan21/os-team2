@@ -13,6 +13,13 @@ endif
 
 CFLAGS_REMOVE_return_address.o = -pg
 
+CFLAGS_set_rotation.o := -DDEBUG
+CFLAGS_rotlock_read.o := -DDEBUG
+CFLAGS_rotlock_write.o := -DDEBUG
+CFLAGS_rotunlock_read.o := -DDEBUG
+CFLAGS_rotunlock_write.o := -DDEBUG
+CFLAGS_rotation.o := -DDEBUG
+
 # Object file lists.
 
 obj-y		:= elf.o entry-armv.o entry-common.o irq.o opcodes.o \
