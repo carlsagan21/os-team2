@@ -31,6 +31,7 @@ int sys_set_rotation(int degree) /* 0 <= degree < 360 */
 	mutex_unlock(&rotlock_mutex);
 	// TODO 새롭게 acquired 된 것들이 있으면 wakeup
 	pr_debug("[soo] wake up all\n");
+	wake_up_interruptible_all(&wq_rotlock);
 
 	return 0;
 };

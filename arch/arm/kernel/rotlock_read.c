@@ -16,7 +16,7 @@
 int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 180 */
 {
 	rotlock_t *p_new_lock;
-	int acquirable;
+	// int acquirable;
 
 	pr_debug("[soo] sys_rotlock_read\n");
 
@@ -30,9 +30,9 @@ int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 1
 	p_new_lock->pid = task_pid_nr(current);
 	p_new_lock->status = PENDING;
 
-	acquirable = 0;
+	// acquirable = 0;
 	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
-	acquirable = is_acquirable(p_new_lock);
+	// acquirable = is_acquirable(p_new_lock);
 
 	list_add_pending(p_new_lock); // 일단 pending 으로 보냄
 	refresh_pending_waiting_lists();
@@ -41,10 +41,15 @@ int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 1
 
 	__print_all_lists();
 	mutex_unlock(&rotlock_mutex);
-	pr_debug("[soo] acquirable: %d\n", acquirable);
-	if (acquirable) {
-		// TODO wait queue
-	}
+
+	pr_debug("[soo] p_lock status: %d\n", p_new_lock->status);
+
+	// wait_event_interruptible(wq_rotlock, p_new_lock->status == ACQUIRED);
+	// if (!acquirable) {
+	// 	// 이 부분에서 멀티쓰레드에 의해 list 구조가 변형되었을 가능성이 있음. 그래도 is_acquirable(p_new_lock) 을 써도 되는 것으로 생각됨.
+	// 	wait_event_interruptible(wq, p_new_lock->status == ACQUIRED);
+	// 	// TODO wait queue
+	// }
 
 	return 0;
 };

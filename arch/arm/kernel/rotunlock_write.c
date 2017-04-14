@@ -31,6 +31,7 @@ int sys_rotunlock_write(int degree, int range) /* degree - range <= LOCK RANGE <
 	mutex_unlock(&rotlock_mutex);
 	// TODO 새롭게 acquired 된 것들이 있으면 wakeup
 	pr_debug("[soo] wake up all\n");
+	wake_up_interruptible_all(&wq_rotlock);
 
 	return 0;
 };

@@ -5,6 +5,7 @@
 #include <linux/spinlock.h>
 #include <linux/rwlock_types.h>
 #include <linux/mutex.h>
+#include <linux/wait.h>
 
 rotation_t rotation;
 
@@ -19,8 +20,9 @@ unsigned long spin_lock_flags;
 DEFINE_MUTEX(rotlock_mutex);
 
 DEFINE_RWLOCK(list_iteration_rwlock);
-// rwlock_init(list_iteration_rwlock);
 unsigned long rwlock_flags;
+
+DECLARE_WAIT_QUEUE_HEAD(wq_rotlock);
 
 // for iteration
 rotlock_t *p_lock;

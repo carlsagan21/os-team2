@@ -1,5 +1,6 @@
 #include <linux/types.h>
 #include <linux/list.h>
+#include <linux/wait.h>
 
 // type
 #define READ_LOCK 0
@@ -16,7 +17,13 @@ typedef struct __rotation_t {
 
 extern rotation_t rotation;
 
+extern struct list_head pending_lh;
+extern struct list_head wait_read_lh;
+extern struct list_head wait_write_lh;
+extern struct list_head acquired_lh;
+
 extern struct mutex rotlock_mutex;
+extern wait_queue_head_t wq_rotlock;
 
 typedef struct __rotlock_t { // task_struct
 	int type; // 0: read, 1: write
@@ -26,11 +33,6 @@ typedef struct __rotlock_t { // task_struct
 	int status;
 	struct list_head list_node;
 } rotlock_t;
-
-extern struct list_head pending_lh;
-extern struct list_head wait_read_lh;
-extern struct list_head wait_write_lh;
-extern struct list_head acquired_lh;
 
 int is_unlock_match(rotlock_t *lock1, int type, int degree, int range, int pid);
 
