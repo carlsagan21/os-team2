@@ -14,6 +14,8 @@ LIST_HEAD(acquired_lh);
 DEFINE_SPINLOCK(list_iteration_spin_lock);
 unsigned long flags;
 
+DEFINE_MUTEX(rotlock_mutex);
+
 int __is_unlock_match(rotlock_t *lock1, int type, int degree, int range, int pid)
 {
 	if (
