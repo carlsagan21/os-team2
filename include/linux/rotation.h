@@ -16,6 +16,8 @@ typedef struct __rotation_t {
 
 extern rotation_t rotation;
 
+extern struct mutex rotlock_mutex;
+
 typedef struct __rotlock_t { // task_struct
 	int type; // 0: read, 1: write
 	int degree;

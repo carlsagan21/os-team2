@@ -16,6 +16,8 @@ int sys_rotunlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range <
 {
 	int pid;
 
+	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
+
 	pr_debug("[soo] sys_rotunlock_read\n");
 
 	pid = task_pid_nr(current);
@@ -28,5 +30,6 @@ int sys_rotunlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range <
 
 	__print_all_lists();
 
+	mutex_unlock(&rotlock_mutex);
 	return 0;
 };
