@@ -28,6 +28,8 @@ int sys_rotunlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range <
 
 	__print_all_lists();
 	mutex_unlock(&rotlock_mutex);
+	// TODO 새롭게 acquired 된 것들이 있으면 wakeup
+	pr_debug("[soo] wake up all\n");
 
 	return 0;
 };

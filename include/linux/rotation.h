@@ -34,6 +34,8 @@ extern struct list_head acquired_lh;
 
 int is_unlock_match(rotlock_t *lock1, int type, int degree, int range, int pid);
 
+int is_acquirable(rotlock_t *p_lock);
+
 int list_add_pending(rotlock_t *p_pending_lock);
 int refresh_pending_waiting_lists(void);
 int wait_write_to_acquire(void);

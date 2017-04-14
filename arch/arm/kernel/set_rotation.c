@@ -29,6 +29,8 @@ int sys_set_rotation(int degree) /* 0 <= degree < 360 */
 
 	__print_all_lists();
 	mutex_unlock(&rotlock_mutex);
+	// TODO 새롭게 acquired 된 것들이 있으면 wakeup
+	pr_debug("[soo] wake up all\n");
 
 	return 0;
 };

@@ -16,6 +16,7 @@
 int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= degree + range */
 {
 	rotlock_t *p_new_lock;
+	int acquirable;
 
 	pr_debug("[soo] sys_rotlock_write\n");
 
@@ -29,7 +30,10 @@ int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= 
 	p_new_lock->pid = task_pid_nr(current);
 	p_new_lock->status = PENDING;
 
+	acquirable = 0;
 	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
+	acquirable = is_acquirable(p_new_lock);
+
 	list_add_pending(p_new_lock); // 일단 pending 으로 보냄
 	refresh_pending_waiting_lists();
 	wait_write_to_acquire();
@@ -37,6 +41,10 @@ int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= 
 
 	__print_all_lists();
 	mutex_unlock(&rotlock_mutex);
+	pr_debug("[soo] acquirable: %d\n", acquirable);
+	if (acquirable) {
+		// TODO wait queue
+	}
 
 	return 0;
 };
