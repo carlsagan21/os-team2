@@ -7,6 +7,7 @@
 #include <linux/slab.h> /* for kmalloc(), GFP_KERNEL. linux/gfp 따로 include 안해도 됨. */
 // #include <linux/uaccess.h> /* for copy_from_user, copy_to_user, strncpy */
 // #include <linux/errno.h>
+#include <linux/poison.h>
 
 /*
  * Take a read/or write lock using the given rotation range
@@ -44,9 +45,15 @@ int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 1
 
 	pr_debug("[soo] p_lock status: %d\n", p_new_lock->status);
 
-	// wait_event_interruptible(wq_rotlock, p_new_lock->status == ACQUIRED);
+	// aquire 이거나 이미 삭제되었거나.
+	// 이 부분에서 멀티쓰레드에 의해 list 구조가 변형되었을 가능성이 있음.
+	wait_event_interruptible(wq_rotlock, p_new_lock->status == ACQUIRED || is_rotlock_deleted(p_new_lock));
+
+	if (is_rotlock_deleted(p_new_lock)) { // NULL 이 아니면서 리스트가 삭제되어 있을 시
+		kfree(p_new_lock);
+	}
 	// if (!acquirable) {
-	// 	// 이 부분에서 멀티쓰레드에 의해 list 구조가 변형되었을 가능성이 있음. 그래도 is_acquirable(p_new_lock) 을 써도 되는 것으로 생각됨.
+	//
 	// 	wait_event_interruptible(wq, p_new_lock->status == ACQUIRED);
 	// 	// TODO wait queue
 	// }

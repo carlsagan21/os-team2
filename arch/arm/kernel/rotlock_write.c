@@ -44,7 +44,13 @@ int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= 
 
 	pr_debug("[soo] p_lock status: %d\n", p_new_lock->status);
 
-	// wait_event_interruptible(wq_rotlock, p_new_lock->status == ACQUIRED);
+	// aquire 이거나 이미 삭제되었거나.
+	// 이 부분에서 멀티쓰레드에 의해 list 구조가 변형되었을 가능성이 있음.
+	wait_event_interruptible(wq_rotlock, p_new_lock->status == ACQUIRED || is_rotlock_deleted(p_new_lock));
+
+	if (is_rotlock_deleted(p_new_lock)) {
+		kfree(p_new_lock);
+	}
 
 	return 0;
 };
