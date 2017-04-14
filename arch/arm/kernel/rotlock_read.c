@@ -17,8 +17,6 @@ int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 1
 {
 	rotlock_t *p_new_lock;
 
-	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
-
 	pr_debug("[soo] sys_rotlock_read\n");
 
 	p_new_lock = kmalloc(sizeof(rotlock_t), GFP_KERNEL);
@@ -38,6 +36,5 @@ int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 1
 
 	__print_all_lists();
 
-	mutex_unlock(&rotlock_mutex);
 	return 0;
 };

@@ -14,8 +14,6 @@
  */
 int sys_set_rotation(int degree) /* 0 <= degree < 360 */
 {
-	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
-
 	if (degree < 0 || degree >= 360)
 		return -EINVAL;
 
@@ -28,6 +26,5 @@ int sys_set_rotation(int degree) /* 0 <= degree < 360 */
 
 	__print_all_lists();
 
-	mutex_unlock(&rotlock_mutex);
 	return 0;
 };
