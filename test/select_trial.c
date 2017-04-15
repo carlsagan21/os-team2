@@ -1,9 +1,11 @@
 #include<stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 int selector(int x)
 {
 	int i = x;
-	while(true)
+	while(1)
 	{
 		lock.acquire();
 		FILE *f = fopen("file.txt", "w");
@@ -11,8 +13,10 @@ int selector(int x)
 		fclose(f);
 		lock.release();
 
-		printf("selector: %d", i);
+		printf("selector: %d\n", i);
 		i++;
+
+//		if(i==100) break;
 	}
 }
 
@@ -21,7 +25,7 @@ int trial(int iden)
 	char out[100] = "";
 	int num;
 
-	while(true)
+	while(1)
 	{
 		lock.acquire();
 		FILE *f = fopen("file.txt", "r");
@@ -32,5 +36,11 @@ int trial(int iden)
 		num = atoi(out);
 		printf("trial-%d: ", iden);
 		trial_imple(num);
+//		printf("%d\n", num);
 	}
+}
+
+int main()
+{
+	trial(10);
 }
