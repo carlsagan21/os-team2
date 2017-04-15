@@ -308,6 +308,94 @@ void __print_all_lists(void)
 	read_unlock_irqrestore(&list_iteration_rwlock, rwlock_flags);
 }
 
-// int exit_rotlock(pid_t pid) {
-// return 0;
-// }; // kernel/exit.c 의 do_exit() 안에 insert.
+rotlock_t* __pid_find_location_ret_rotlock(pid_t pid){
+	spin_lock_irqsave(&list_iteration_spin_lock, spin_lock_flags);
+	//flag for finding process with same pid, 0 => false 1 => true
+	int status = 0;
+	rotlock_t* res;
+
+	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
+		if(p_lock->pid == pid){
+			status = 1;
+			res = p_lock;
+			break;
+		}
+	}
+
+	if(status!=1){
+		list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, list_node) {
+			if(p_lock->pid == pid){
+				status = 1;
+				res = p_lock;
+				break;
+			}
+		}
+	}
+
+	if(status!=1){
+		list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, list_node) {
+			if(p_lock->pid == pid){
+				status = 1;
+				res = p_lock;
+				break;
+			}
+		}
+	}
+
+	if(status!=1){
+		list_for_each_entry_safe(p_acquired_lock, p_acquired_safe_lock, &acquired_lh, list_node) {
+			if(p_lock->pid == pid){
+				status = 1;
+				res = p_lock;
+				break;
+			}
+		}
+	}
+
+	spin_unlock_irqrestore(&list_iteration_spin_lock, spin_lock_flags);
+	return res;
+}
+
+wait_queue_t* __find_element_from_wait_queue(pid_t pid){
+	wait_queue_t* p_thread;
+	wait_queue_t* p_temp_thread;
+	list_for_entry_safe(p_thread,p_temp_thread,&wq_rotlock,list_head){
+		if(p_thread->private->pid==pid) return p_thread;
+	}
+}
+
+int __sync_remove_thread_from_waiting_queue_and_delete_lock(rotlock_t *target){
+	wait_queue_t *killedProcessThread = __find_element_from_wait_queue(target->pid);
+	remove_wait_queue(wq_rotlock,killedProcessThread);
+	delete_lock(target->type,target->degree,target->range,target->pid);
+}
+
+int __handle_killed_process_lock(rotlock_t* target){
+	switch(target->status){
+		case ACQUIRED:
+			switch(target->type){
+				case READ_LOCK:
+					rotunlock_read(target->degree,target->range);
+					break;
+				case WRITE_LOCK:
+					rotunlock_write(target->degree,target->range);
+					break;
+				case default:
+					break;
+			}
+			break;
+		case WAIT_READ:
+		case WAIT_WRITE:
+		case PENDING:
+			__sync_remove_thread_from_waiting_queue_and_delete_lock(target);
+			break;
+		case default:
+			break;
+	}
+}
+
+int exit_rotlock(pid_t pid) {
+	rotlock_t* target = __pid_find_location_ret_rotlock(pid);
+	__handle_killed_process_lock(target);
+ return 0;
+} // kernel/exit.c 의 do_exit() 안에 insert.

@@ -53,10 +53,12 @@
 #include <linux/oom.h>
 #include <linux/writeback.h>
 #include <linux/shm.h>
+// Add rotation header file related with process_kill
+#include <linux/rotation.h>
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
-#include <asm/pgtable.h>
+#include <asm/pgtable.`h>
 #include <asm/mmu_context.h>
 
 static void exit_mm(struct task_struct * tsk);
