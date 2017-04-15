@@ -19,17 +19,17 @@ int prime_number_factorize (int x)
 	}
 }
 
-int trial(int x)
+int trial_imple(int x)
 {
-	printf("trial-0: %d = ", x);
+	printf("%d = ", x);
 	prime_number_factorize(x);
 }
 
 
 int main()
 {
-	trial(10);
-	trial(360);
+	trial_imple(10);
+	trial_imple(360);
 	return 0;
 
 
