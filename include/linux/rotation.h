@@ -44,7 +44,7 @@ int wait_write_to_acquire(void);
 int wait_read_to_acquire(void);
 
 int delete_lock(int type, int degree, int range, int pid);
-int is_rotlock_deleted(rotlock_t *p_lock);
+// int is_rotlock_deleted(rotlock_t *p_lock);
 
 void __print_all_lists(void);
 
