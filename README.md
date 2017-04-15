@@ -16,7 +16,7 @@
 -   root
 -   tizen
 -   ./test/rotd
--    dmesg | grep degree
+-   dmesg | grep degree
 
 
 ## if you recompile test

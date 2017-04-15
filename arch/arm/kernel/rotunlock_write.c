@@ -1,9 +1,10 @@
 // #include <linux/unistd.h>
 #include <linux/kernel.h>
-// #include <linux/sched.h>
-// #include <linux/list.h>
+#include <linux/rotation.h>
+#include <linux/sched.h>
+#include <linux/list.h>
+#include <linux/slab.h> /* for kmalloc(), GFP_KERNEL. linux/gfp 따로 include 안해도 됨. */
 // #include <linux/cred.h> /* for task_uid() */
-// #include <linux/slab.h> /* for kmalloc(), GFP_KERNEL. linux/gfp 따로 include 안해도 됨. */
 // #include <linux/uaccess.h> /* for copy_from_user, copy_to_user, strncpy */
 // #include <linux/errno.h>
 
@@ -14,22 +15,29 @@
  */
 int sys_rotunlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= degree + range */
 {
-	printk("[soo] sys_rotunlock_write\n");
+	int pid;
+	rotlock_t *p_deleted_rotlock;
 
-	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, pending_lh) {
-		printk(KERN_DEBUG "[soo] sys_rotlock_read pending_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
+	pr_debug("[soo] sys_rotunlock_write\n");
+
+	pid = task_pid_nr(current);
+
+	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
+	p_deleted_rotlock = delete_lock(WRITE_LOCK, degree, range, pid);
+	refresh_pending_waiting_lists();
+	wait_write_to_acquire();
+	wait_read_to_acquire();
+
+	__print_all_lists();
+	mutex_unlock(&rotlock_mutex);
+	// TODO 새롭게 acquired 된 것들이 있으면 wakeup
+	pr_debug("[soo] wake up all\n");
+
+	if (is_rotlock_deleted(p_deleted_rotlock)) {
+		kfree(p_deleted_rotlock);
 	}
 
-	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, wait_read_lh) {
-		printk(KERN_DEBUG "[soo] sys_rotlock_read wait_read_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
-	}
+	wake_up_interruptible_all(&wq_rotlock);
 
-	list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, wait_write_lh) {
-		printk(KERN_DEBUG "[soo] sys_rotlock_read wait_write_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
-	}
-
-	list_for_each_entry_safe(p_lock, p_temp_lock, &acquired_lh, acquired_lh) {
-		printk(KERN_DEBUG "[soo] sys_rotlock_read acquired_lh: %d, %d, %d, %d, %p, %p, %p, %p, %p, %p\n", p_lock->type, p_lock->degree, p_lock->range, p_lock->pid, &(p_lock->pending_lh), &(p_lock->wait_read_lh), &(p_lock->wait_write_lh), &(p_lock->acquired_lh), p_lock->pending_lh.next, p_lock->pending_lh.prev);
-	}
 	return 0;
 };
