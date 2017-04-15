@@ -104,3 +104,5 @@ zImage
 test/test
 test/rotd
 test/out*
+test/selector
+test/trial
