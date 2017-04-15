@@ -7,11 +7,11 @@ int selector(int x)
 	{
 		lock.acquire();
 		FILE *f = fopen("file.txt", "w");
-		fprintf(f, "%d", x);
+		fprintf(f, "%d", i);
 		fclose(f);
 		lock.release();
 
-		printf("selector: %d", x);
+		printf("selector: %d", i);
 		i++;
 	}
 }
