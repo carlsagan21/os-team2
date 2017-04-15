@@ -103,3 +103,4 @@ zImage
 *.h.gch
 test/test
 test/rotd
+test/out*

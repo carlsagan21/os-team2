@@ -16,10 +16,9 @@
 int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= degree + range */
 {
 	rotlock_t *p_new_lock;
-	// rotlock_t *p_lock;
-	// rotlock_t *p_temp_lock;
+	// int acquirable;
 
-	printk(KERN_DEBUG "[soo] sys_rotlock_write\n");
+	pr_debug("[soo] sys_rotlock_write\n");
 
 	p_new_lock = kmalloc(sizeof(rotlock_t), GFP_KERNEL);
 	if (p_new_lock == NULL) /* kmalloc 은 NULL 로 제대로 되었는지 여부 판단 */
@@ -29,15 +28,29 @@ int sys_rotlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= 
 	p_new_lock->degree = degree;
 	p_new_lock->range = range;
 	p_new_lock->pid = task_pid_nr(current);
-	// INIT_LIST_HEAD(&(p_new_lock->list_node)); // FIXME 없어도 될듯
-	list_add_tail(&(p_new_lock->list_node), &pending_lh); // 일단 pending 으로 보냄
 	p_new_lock->status = PENDING;
 
+	// acquirable = 0;
+	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
+	// acquirable = is_acquirable(p_new_lock);
+
+	list_add_pending(p_new_lock); // 일단 pending 으로 보냄
 	refresh_pending_waiting_lists();
 	wait_write_to_acquire();
 	wait_read_to_acquire();
 
 	__print_all_lists();
+	mutex_unlock(&rotlock_mutex);
+
+	pr_debug("[soo] p_lock status: %d\n", p_new_lock->status);
+
+	// aquire 이거나 이미 삭제되었거나.
+	// 이 부분에서 멀티쓰레드에 의해 list 구조가 변형되었을 가능성이 있음.
+	wait_event_interruptible(wq_rotlock, p_new_lock->status == ACQUIRED || is_rotlock_deleted(p_new_lock));
+
+	if (is_rotlock_deleted(p_new_lock)) {
+		kfree(p_new_lock);
+	}
 
 	return 0;
 };
