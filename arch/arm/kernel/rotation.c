@@ -55,9 +55,9 @@ int __is_range_contains_rotation(int degree, int range, int rotation)
 	int rot_plus = rotation + 360;
 
 	if (
-		(a < rotation && rotation < b) ||
-		(a < rot_minus && rot_minus < b) ||
-		(a < rot_plus && rot_plus < b)
+		(a <= rotation && rotation <= b) ||
+		(a <= rot_minus && rot_minus <= b) ||
+		(a <= rot_plus && rot_plus <= b)
 	)
 		return 1;
 	else
