@@ -128,6 +128,7 @@ int is_acquirable(rotlock_t *p_lock)
 		if (!__is_waiting_lock_acquirable_compare_to_acquired_lock(p_lock, p_acquired_lock)) {
 			acquirable = 0;
 			break;
+			// 바로 리턴하는 방식이 아니라 flag 를 쓰는 것은, lock 을 보다 명확하게 풀어주기 위함.
 		}
 	}
 
@@ -215,10 +216,9 @@ int wait_read_to_acquire(void)
 	return 0;
 };
 
-rotlock_t *delete_lock(int type, int degree, int range, int pid)
+int delete_lock(int type, int degree, int range, int pid)
 {
 	int is_deleted;
-	rotlock_t *p_deleted_rotlock = NULL;
 
 	spin_lock_irqsave(&list_iteration_spin_lock, spin_lock_flags);
 
@@ -227,9 +227,8 @@ rotlock_t *delete_lock(int type, int degree, int range, int pid)
 	if (!is_deleted) {
 		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &pending_lh, list_node) {
 			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
-				list_del(&(p_lock->list_node)); // 끝내야. flag 를 쓰던가.
-				// kfree(p_lock);
-				p_deleted_rotlock = p_lock;
+				list_del(&(p_lock->list_node));
+				kfree(p_lock);
 				is_deleted = 1;
 			}
 		}
@@ -239,8 +238,7 @@ rotlock_t *delete_lock(int type, int degree, int range, int pid)
 		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &wait_read_lh, list_node) {
 			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
 				list_del(&(p_lock->list_node));
-				// kfree(p_lock);
-				p_deleted_rotlock = p_lock;
+				kfree(p_lock);
 				is_deleted = 1;
 			}
 		}
@@ -250,8 +248,7 @@ rotlock_t *delete_lock(int type, int degree, int range, int pid)
 		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &wait_write_lh, list_node) {
 			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
 				list_del(&(p_lock->list_node));
-				// kfree(p_lock);
-				p_deleted_rotlock = p_lock;
+				kfree(p_lock);
 				is_deleted = 1;
 			}
 		}
@@ -261,21 +258,20 @@ rotlock_t *delete_lock(int type, int degree, int range, int pid)
 		list_for_each_entry_safe_reverse(p_lock, p_temp_lock, &acquired_lh, list_node) {
 			if (__is_unlock_match(p_lock, type, degree, range, pid)) {
 				list_del(&(p_lock->list_node));
-				// kfree(p_lock);
-				p_deleted_rotlock = p_lock;
+				kfree(p_lock);
 				is_deleted = 1;
 			}
 		}
 	}
 
 	spin_unlock_irqrestore(&list_iteration_spin_lock, spin_lock_flags);
-	return p_deleted_rotlock;
+	return is_deleted;
 }
 
-int is_rotlock_deleted(rotlock_t *p_lock)
-{
-	return p_lock != NULL && (p_lock->list_node.next == LIST_POISON1) && (p_lock->list_node.prev == LIST_POISON2);
-}
+// int is_rotlock_deleted(rotlock_t *p_lock)
+// {
+// 	return p_lock != NULL && (p_lock->list_node.next == LIST_POISON1) && (p_lock->list_node.prev == LIST_POISON2);
+// }
 
 void __print_all_lists(void)
 {

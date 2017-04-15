@@ -3,7 +3,7 @@
 #include <linux/rotation.h>
 #include <linux/sched.h>
 #include <linux/list.h>
-#include <linux/slab.h> /* for kmalloc(), GFP_KERNEL. linux/gfp 따로 include 안해도 됨. */
+// #include <linux/slab.h> /* for kmalloc(), GFP_KERNEL. linux/gfp 따로 include 안해도 됨. */
 // #include <linux/cred.h> /* for task_uid() */
 // #include <linux/uaccess.h> /* for copy_from_user, copy_to_user, strncpy */
 // #include <linux/errno.h>
@@ -16,14 +16,15 @@
 int sys_rotunlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= degree + range */
 {
 	int pid;
-	rotlock_t *p_deleted_rotlock;
+	// rotlock_t *p_deleted_rotlock;
 
 	pr_debug("[soo] sys_rotunlock_write\n");
 
 	pid = task_pid_nr(current);
 
 	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
-	p_deleted_rotlock = delete_lock(WRITE_LOCK, degree, range, pid);
+	// p_deleted_rotlock = delete_lock(WRITE_LOCK, degree, range, pid);
+	delete_lock(WRITE_LOCK, degree, range, pid);
 	refresh_pending_waiting_lists();
 	wait_write_to_acquire();
 	wait_read_to_acquire();
@@ -33,9 +34,9 @@ int sys_rotunlock_write(int degree, int range) /* degree - range <= LOCK RANGE <
 	// TODO 새롭게 acquired 된 것들이 있으면 wakeup
 	pr_debug("[soo] wake up all\n");
 
-	if (is_rotlock_deleted(p_deleted_rotlock)) {
-		kfree(p_deleted_rotlock);
-	}
+	// if (is_rotlock_deleted(p_deleted_rotlock)) {
+	// 	kfree(p_deleted_rotlock);
+	// }
 
 	wake_up_interruptible_all(&wq_rotlock);
 
