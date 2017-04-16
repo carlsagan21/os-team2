@@ -74,6 +74,7 @@ typedef struct __rotlock_t {
 /**
  * deprecated. 현재 리스트들의 상태와 새로운 락을 비교하여 락을 잡을 수 있는지 여부를 판단합니다.
  * 최초에는 필요하였으나 지금은 deprecated 되었습니다.
+ * TODO 헤더 파일에는 불필요하지만 내부에서는 사용합니다. privete 로 전환해야 합니다. __is_acquirable
  */
 int is_acquirable(rotlock_t *p_lock);
 

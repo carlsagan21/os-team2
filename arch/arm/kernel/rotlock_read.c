@@ -37,7 +37,7 @@ int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 1
 	wait_write_to_acquire();
 	wait_read_to_acquire();
 
-	// DEBUG __print_all_lists();
+	__print_all_lists();
 	mutex_unlock(&rotlock_mutex);
 
 	pr_debug("[soo] p_lock status: %d\n", p_new_lock->status);
