@@ -1,19 +1,12 @@
-// #include <linux/unistd.h>
 #include <linux/kernel.h>
 #include <linux/rotation.h>
 #include <linux/sched.h>
 #include <linux/list.h>
-// #include <linux/slab.h> /* for kmalloc(), GFP_KERNEL. linux/gfp 따로 include 안해도 됨. */
-// #include <linux/cred.h> /* for task_uid() */
-// #include <linux/uaccess.h> /* for copy_from_user, copy_to_user, strncpy */
-// #include <linux/errno.h>
 
 /*
- * Release a read/or write lock using the given rotation range
- * returning 0 on success, -1 on failure.
- * system call numbers 383 and 384
+ * rotunlock_read 주석 참고.
  */
-int sys_rotunlock_write(int degree, int range) /* degree - range <= LOCK RANGE <= degree + range */
+int sys_rotunlock_write(int degree, int range)
 {
 	int pid;
 	// rotlock_t *p_deleted_rotlock;
@@ -22,7 +15,7 @@ int sys_rotunlock_write(int degree, int range) /* degree - range <= LOCK RANGE <
 
 	pid = task_pid_nr(current);
 
-	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
+	mutex_lock(&rotlock_mutex);
 	// p_deleted_rotlock = delete_lock(WRITE_LOCK, degree, range, pid);
 	delete_lock(WRITE_LOCK, degree, range, pid);
 	refresh_pending_waiting_lists();
@@ -31,7 +24,7 @@ int sys_rotunlock_write(int degree, int range) /* degree - range <= LOCK RANGE <
 
 	__print_all_lists();
 	mutex_unlock(&rotlock_mutex);
-	// TODO 새롭게 acquired 된 것들이 있으면 wakeup
+
 	pr_debug("[soo] wake up all\n");
 
 	// if (is_rotlock_deleted(p_deleted_rotlock)) {

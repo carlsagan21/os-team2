@@ -7,24 +7,68 @@
 #include <linux/mutex.h>
 #include <linux/wait.h>
 
+/**
+ * extern rotation impl.
+ */
 rotation_t rotation;
 
+/**
+ * extern list heads impl.
+ * 이니셜라이즈까지 매크로로 됩니다.
+ */
 LIST_HEAD(pending_lh);
 LIST_HEAD(wait_read_lh);
 LIST_HEAD(wait_write_lh);
 LIST_HEAD(acquired_lh);
 
+/**
+ * extern spinlock impl.
+ * 리스트 이터레이션 및 write 일 때 사용됩니다.
+ * list_add_pending, refresh_pending_waiting_lists, wait_write_to_acquire, wait_read_to_acquire 에서 사용합니다.
+ */
 DEFINE_SPINLOCK(list_iteration_spin_lock);
+
+/**
+ * a flag for spin_unlock_irqsave/restore
+ */
 unsigned long spin_lock_flags;
 
+/**
+ * extern mutex impl.
+ * 리스트 이터레이션 함수들을 묶어주기 위해 시스템콜에서 직접 호출됩니다.
+ * 구조적으로
+ * mutex.lock()
+ *   spinlock.lock()
+ *   spinlock.unlock()
+ *   spinlock.lock()
+ *   spinlock.unlock()
+ *   ...
+ * mutex.unlock()
+ * 이 됩니다.
+ */
 DEFINE_MUTEX(rotlock_mutex);
 
+/**
+ * extern rwlock impl.
+ * 리스트에 접근할떄 사용되는 락입니다.
+ * 리스트를 read 만 하는 경우에 있어서 readlock 이 사용되고 있습니다.
+ * list_iteration_spin_lock을 써도 되지만, read에 한정되는 경우들이기도 하고, 실제적올 deprecated 를 제외하면 디버깅용 함수에만 쓰이고 있어서 공부도 할 겸 집어넣었습니다.
+ */
 DEFINE_RWLOCK(list_iteration_rwlock);
+
+/**
+ * rwlock flags
+ */
 unsigned long rwlock_flags;
 
+/**
+ * extern wait queue impl.
+ */
 DECLARE_WAIT_QUEUE_HEAD(wq_rotlock);
 
-// for iteration
+/**
+ * for each entry 로 이터레이션을 할때 사용되는 임시값들입니다.
+ */
 rotlock_t *p_lock;
 rotlock_t *p_temp_lock;
 rotlock_t *p_waiting_lock;
@@ -32,6 +76,10 @@ rotlock_t *p_waiting_temp_lock;
 rotlock_t *p_acquired_lock;
 rotlock_t *p_acquired_safe_lock;
 
+/**
+ * unlock 호출 시, 호출에서 사용된 type, degree, range, pid 가 저장되어있는 락과 일치하는지 확인합니다.
+ * 일치하면 1을, 아니면 0을 리턴합니다.
+ */
 int __is_unlock_match(rotlock_t *lock1, int type, int degree, int range, int pid)
 {
 	if (
@@ -46,6 +94,9 @@ int __is_unlock_match(rotlock_t *lock1, int type, int degree, int range, int pid
 	}
 }
 
+/**
+ * 특정 degree, range의 조합이 rotation 을 포함하는지 판단합니다. pending -> wait 판단에 사용됩니다.
+ */
 int __is_range_contains_rotation(int degree, int range, int rotation)
 {
 	int a = degree - range;
@@ -64,6 +115,9 @@ int __is_range_contains_rotation(int degree, int range, int rotation)
 		return 0;
 }
 
+/**
+ * 두 범위가 겹치지 않는지 여부를 판단합니다. wait -> acquire 판단에 사용됩니다.
+ */
 int __is_not_overlapped(int deg1, int rang1, int deg2, int rang2)
 {
 	int a = (deg1 - rang1) < 0 ? (deg1 - rang1) + 360 : (deg1 - rang1);
@@ -83,15 +137,16 @@ int __is_not_overlapped(int deg1, int rang1, int deg2, int rang2)
 	);
 }
 
+/**
+ * wait 리스트에 있는 특정 락이, 현재 어콰이어 되어있는 락들에 대비하여 어콰이어가 가능한지를 판단합니다.
+ * read/write 락의 경우들을 모두 포괄합니다.
+ * Check whether degree/range of waiting_lock_node overlaps with that of acquired_lock
+ * if not overlapped -> 1 , else -> 0
+ * Regarding Reader Case, reader should look at acquired_lock_list if there is writer lock which has same degree/range
+ * Writer Case You don't need to
+ */
 int __is_waiting_lock_acquirable_compare_to_acquired_lock(rotlock_t *p_waiting_lock, rotlock_t *p_acquired_lock)
 {
-	/*
-	 * Check whether degree/range of waiting_lock_node overlaps with that of acquired_lock
-	 * if not overlapped -> 1 , else -> 0
-	 * Regarding Reader Case, reader should look at acquired_lock_list if there is writer lock which has same degree/range
-	 * Writer Case You don't need to
-	 */
-
 	// Reader Case
 	if (p_waiting_lock->type == READ_LOCK) {
 		if (p_acquired_lock->type == READ_LOCK) {
@@ -268,11 +323,6 @@ int delete_lock(int type, int degree, int range, int pid)
 	return is_deleted;
 }
 
-// int is_rotlock_deleted(rotlock_t *p_lock)
-// {
-// 	return p_lock != NULL && (p_lock->list_node.next == LIST_POISON1) && (p_lock->list_node.prev == LIST_POISON2);
-// }
-
 void __print_all_lists(void)
 {
 	read_lock_irqsave(&list_iteration_rwlock, rwlock_flags);
@@ -355,7 +405,7 @@ rotlock_t* __pid_find_location_ret_rotlock(pid_t pid){
 wait_queue_t* __find_element_from_wait_queue(pid_t pid){
 	wait_queue_t* p_thread;
 	wait_queue_t* p_temp_thread;
-	list_for_entry_safe(p_thread,p_temp_thread,&wq_rotlock,list_head){
+	list_for_each_entry_safe(p_thread,p_temp_thread,&wq_rotlock,task_list){
 		if(p_thread->private->pid==pid) return p_thread;
 	}
 }

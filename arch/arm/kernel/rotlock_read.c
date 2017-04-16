@@ -1,13 +1,8 @@
-// #include <linux/unistd.h>
 #include <linux/kernel.h>
 #include <linux/rotation.h>
 #include <linux/sched.h>
 #include <linux/list.h>
-// #include <linux/cred.h> /* for task_uid() */
-#include <linux/slab.h> /* for kmalloc(), GFP_KERNEL. linux/gfp 따로 include 안해도 됨. */
-// #include <linux/uaccess.h> /* for copy_from_user, copy_to_user, strncpy */
-// #include <linux/errno.h>
-// #include <linux/poison.h>
+#include <linux/slab.h>
 
 /*
  * Take a read/or write lock using the given rotation range
@@ -17,7 +12,6 @@
 int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 180 */
 {
 	rotlock_t *p_new_lock;
-	// int acquirable;
 
 	pr_debug("[soo] sys_rotlock_read\n");
 
@@ -31,31 +25,33 @@ int sys_rotlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range < 1
 	p_new_lock->pid = task_pid_nr(current);
 	p_new_lock->status = PENDING;
 
-	// acquirable = 0;
-	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
-	// acquirable = is_acquirable(p_new_lock);
+	/*
+	 * mutually exclusive 한 리스트 수정.
+	 * kill, interrupt 를 막음.
+	 * 일단 pending 으로 보내버리고, 리스트를 재조정시킴.
+	 */
+	mutex_lock(&rotlock_mutex); //
 
-	list_add_pending(p_new_lock); // 일단 pending 으로 보냄
+	list_add_pending(p_new_lock);
 	refresh_pending_waiting_lists();
 	wait_write_to_acquire();
 	wait_read_to_acquire();
 
-	__print_all_lists();
+	// DEBUG __print_all_lists();
 	mutex_unlock(&rotlock_mutex);
 
 	pr_debug("[soo] p_lock status: %d\n", p_new_lock->status);
 
-	// aquire 이거나 이미 삭제되었거나.
-	// FIXME 이 부분에서 멀티쓰레드에 의해 list 구조가 변형되었을 가능성이 있음. 그래도 CONDITION 이 성립해야 하는건 마찬가지인..가? p_new_lock가 없어졌을 경우,
+	/**
+	 * aquire 이거나 이미 삭제되었거나.
+ 	 * 이 부분에서 멀티쓰레드에 의해 위의 뮤텍스 안에서 수정된 list 구조가 그대로 유지되었으리라는 보장 없음.
+	 * 그래도 CONDITION 이 성립해야 하는건 마찬가지임.
+	 * FIXME p_new_lock 이 없어졌을 경우 커버해야. ACQUIRED 되지 않고 중간에 삭제되었을 경우, p_new_lock->status == ACQUIRED 를 보장할 수 없으므로 딜리트 되었는지 여부도 보아야 함.
+	 */
 	wait_event_interruptible(wq_rotlock, p_new_lock->status == ACQUIRED);
 
-	// if (is_rotlock_deleted(p_new_lock)) { // NULL 이 아니면서 리스트가 삭제되어 있을 시
+	// if (is_rotlock_deleted(p_new_lock)) {
 	// 	kfree(p_new_lock);
-	// }
-	// if (!acquirable) {
-	//
-	// 	wait_event_interruptible(wq, p_new_lock->status == ACQUIRED);
-	// 	// TODO wait queue
 	// }
 
 	return 0;
