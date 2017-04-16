@@ -24,13 +24,3 @@ int trial_imple(int x)
 	printf("%d = ", x);
 	prime_number_factorize(x);
 }
-
-
-int main()
-{
-	trial_imple(10);
-	trial_imple(360);
-	return 0;
-
-
-}
