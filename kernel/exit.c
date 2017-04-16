@@ -58,7 +58,7 @@
 
 #include <asm/uaccess.h>
 #include <asm/unistd.h>
-#include <asm/pgtable.`h>
+#include <asm/pgtable.h>
 #include <asm/mmu_context.h>
 
 static void exit_mm(struct task_struct * tsk);
@@ -790,6 +790,9 @@ void do_exit(long code)
 	if (group_dead)
 		tty_audit_exit();
 	audit_free(tsk);
+
+	/* Insert exit_rotlock before specific procedures are executed */
+	exit_rotlock(current->pid);
 
 	tsk->exit_code = code;
 	taskstats_exit(tsk, group_dead);

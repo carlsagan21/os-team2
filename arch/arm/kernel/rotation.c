@@ -6,6 +6,7 @@
 #include <linux/rwlock_types.h>
 #include <linux/mutex.h>
 #include <linux/wait.h>
+#include <linux/sched.h>
 
 /**
  * extern rotation impl.
@@ -407,28 +408,67 @@ rotlock_t* __pid_find_location_ret_rotlock(pid_t pid){
 wait_queue_t* __find_element_from_wait_queue(pid_t pid){
 	wait_queue_t* p_thread;
 	wait_queue_t* p_temp_thread;
-	list_for_each_entry_safe(p_thread,p_temp_thread,&wq_rotlock,task_list){
-		if(p_thread->private->pid==pid) return p_thread;
+	list_for_each_entry_safe(p_thread,p_temp_thread,&(wq_rotlock.task_list),task_list){
+		struct task_struct* target = p_thread->private;
+		if(target->pid==pid) return p_thread;
 	}
+	//If not found(No possiblity) return something?
+	return p_thread;
 }
 
 int __sync_remove_thread_from_waiting_queue_and_delete_lock(rotlock_t *target){
 	wait_queue_t *killedProcessThread = __find_element_from_wait_queue(target->pid);
-	remove_wait_queue(wq_rotlock,killedProcessThread);
+	remove_wait_queue(&wq_rotlock,killedProcessThread);
 	delete_lock(target->type,target->degree,target->range,target->pid);
+	return 0;
 }
+
+int __rotunlock_read(int degree, int range,int pid) /* 0 <= degree < 360 , 0 < range < 180 */
+{
+	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
+
+	// p_deleted_rotlock = delete_lock(READ_LOCK, degree, range, pid);
+	delete_lock(READ_LOCK, degree, range, pid);
+	refresh_pending_waiting_lists();
+	wait_write_to_acquire();
+	wait_read_to_acquire();
+
+	__print_all_lists();
+	mutex_unlock(&rotlock_mutex);
+
+	wake_up_interruptible_all(&wq_rotlock);
+	return 0;
+};
+
+int __rotunlock_write(int degree, int range,int pid) /* degree - range <= LOCK RANGE <= degree + range */
+{
+	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
+
+	delete_lock(WRITE_LOCK, degree, range, pid);
+	refresh_pending_waiting_lists();
+	wait_write_to_acquire();
+	wait_read_to_acquire();
+
+	__print_all_lists();
+	mutex_unlock(&rotlock_mutex);
+
+	wake_up_interruptible_all(&wq_rotlock);
+
+	return 0;
+};
+
 
 int __handle_killed_process_lock(rotlock_t* target){
 	switch(target->status){
 		case ACQUIRED:
 			switch(target->type){
 				case READ_LOCK:
-					rotunlock_read(target->degree,target->range);
+					__rotunlock_read(target->degree,target->range,target->pid);
 					break;
 				case WRITE_LOCK:
-					rotunlock_write(target->degree,target->range);
+					__rotunlock_write(target->degree,target->range,target->pid);
 					break;
-				case default:
+				default:
 					break;
 			}
 			break;
@@ -437,9 +477,10 @@ int __handle_killed_process_lock(rotlock_t* target){
 		case PENDING:
 			__sync_remove_thread_from_waiting_queue_and_delete_lock(target);
 			break;
-		case default:
+		default:
 			break;
 	}
+	return 0;
 }
 
 int exit_rotlock(pid_t pid) {
