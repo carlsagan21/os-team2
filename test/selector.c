@@ -15,13 +15,14 @@ int selector(int x)
 	while(1)
 	{
 		syscall(__NR_rotlock_write, 90, 90);
-		FILE *f = fopen("file.txt", "w");
+		FILE *f = fopen("/root/test/file.txt", "w");
 		fprintf(f, "%d", i);
 		fclose(f);
-		syscall(__NR_rotunlock_write, 90, 90);
 
 		printf("selector: %d\n", i);
 		i++;
+
+		syscall(__NR_rotunlock_write, 90, 90);
 	}
 }
 

@@ -17,14 +17,14 @@ int trial(int iden)
 	while(1)
 	{
 		syscall(__NR_rotlock_read, 90, 90);
-		FILE *f = fopen("file.txt", "r");
+		FILE *f = fopen("/root/test/file.txt", "r");
 		fgets(out, 100, f);
 		fclose(f);
-		syscall(__NR_rotunlock_read, 90, 90);
 
 		num = atoi(out);
 		printf("trial-%d: ", iden);
 		trial_imple(num);
+		syscall(__NR_rotunlock_read, 90, 90);
 	}
 }
 

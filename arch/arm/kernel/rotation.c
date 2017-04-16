@@ -328,7 +328,7 @@ int delete_lock(int type, int degree, int range, int pid)
 
 void __print_all_lists(void)
 {
-	read_lock_irqsave(&list_iteration_rwlock, rwlock_flags);
+	spin_lock_irqsave(&list_iteration_spin_lock, spin_lock_flags);
 
 	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
 		pr_debug("[soo] pending_lh: %d, %d, %d, %d, %d, %p, %p, %p\n",
@@ -354,7 +354,7 @@ void __print_all_lists(void)
 		&(p_lock->list_node), p_lock->list_node.next, p_lock->list_node.prev);
 	}
 
-	read_unlock_irqrestore(&list_iteration_rwlock, rwlock_flags);
+	spin_unlock_irqrestore(&list_iteration_spin_lock, spin_lock_flags);
 }
 
 rotlock_t *__find_rotlock_by_pid(pid_t pid)
@@ -376,7 +376,7 @@ rotlock_t *__find_rotlock_by_pid(pid_t pid)
 		}
 	}
 
-	
+
 	if (is_rotlock_found != 1) {
 		list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, list_node) {
 			if(p_lock->pid == pid) {
@@ -386,7 +386,7 @@ rotlock_t *__find_rotlock_by_pid(pid_t pid)
 			}
 		}
 	}
-	
+
 	if (is_rotlock_found != 1) {
 		list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, list_node) {
 			if(p_lock->pid == pid) {
@@ -411,57 +411,61 @@ rotlock_t *__find_rotlock_by_pid(pid_t pid)
 	return p_found_lock;
 }
 
-wait_queue_t *__find_wait_queue(wait_queue_head_t *q, pid_t pid)
-{
-	wait_queue_t *p_wq;
-	wait_queue_t *p_temp_wq;
-	int is_wq_found = 0;
-	wait_queue_t *p_found_wq = NULL;
-	unsigned long flags;
-	
-	spin_lock_irqsave(&q->lock, flags);
-
-	list_for_each_entry_safe(p_wq, p_temp_wq, &(q->task_list), task_list) {
-		struct task_struct *p_task = (struct task_struct *)p_wq->private;
-		if (p_task->pid == pid) {
-			is_wq_found = 1;
-			p_found_wq = p_wq;
-			break;
-		}
-	}
-
-	spin_unlock_irqrestore(&q->lock, flags);
-	// if not found(No possiblity), return NULL
-	// actually higly possible
-	return p_found_wq;
-}
-
-int __sync_remove_thread_from_waiting_queue_and_delete_lock(rotlock_t *target) {
-	// TODO remove_wait_queue, rotunlock 순서
-	wait_queue_t *p_wait_queue_to_be_removed = NULL;
-	mutex_lock(&rotlock_mutex);
-
-	delete_lock(target->type, target->degree, target->range, target->pid);
-	// refresh_pending_waiting_lists();
-	// wait_write_to_acquire();
-	// wait_read_to_acquire();
-
-	__print_all_lists();
-	mutex_unlock(&rotlock_mutex);
-
-	p_wait_queue_to_be_removed = __find_wait_queue(&wq_rotlock, target->pid);
-	// 여기에서 현재 삭제되려는 프로세스가 이미 어콰이어되어서 없을 가능성이 있을 수 있을 것 같은데.
-	// do_exit() 이 인터럽트 방지가 되어있나?
-	remove_wait_queue(&wq_rotlock, p_wait_queue_to_be_removed);
-	
-	/**
-	 * write starvation 방지 상황이었으면, delete_lock으로 인해 어콰이어 하는 리더가 생깁니다.
-	 * 리스트에서도 삭제되었고, 웨이트 큐에서도 빠졌으므로 웨이팅 하고 있는 것들을 다 깨워줍니다.
-	 */
-	wake_up_interruptible_all(&wq_rotlock);
-	
-	return 0;
-}
+// wait_queue_t *__find_wait_queue(wait_queue_head_t *q, pid_t pid)
+// {
+// 	wait_queue_t *p_wq;
+// 	wait_queue_t *p_temp_wq;
+// 	int is_wq_found = 0;
+// 	wait_queue_t *p_found_wq = NULL;
+// 	unsigned long flags;
+//
+// 	spin_lock_irqsave(&q->lock, flags);
+//
+// 	pr_debug("[soo] wait_queue_head_lh: %p, %p, %p\n", &(q->task_list), (&(q->task_list))->next, (&(q->task_list))->prev);
+// 	list_for_each_entry_safe(p_wq, p_temp_wq, &(q->task_list), task_list) {
+// 		struct task_struct *p_task = (struct task_struct *)p_wq->private;
+// 		pr_debug("[soo] wait_queue_lh: %p, %p\n", p_wq, p_task);
+// 		if (p_task->pid == pid) {
+// 			is_wq_found = 1;
+// 			p_found_wq = p_wq;
+// 			break;
+// 		}
+// 	}
+//
+// 	spin_unlock_irqrestore(&q->lock, flags);
+// 	// if not found(No possiblity), return NULL
+// 	// actually higly possible
+// 	return p_found_wq;
+// }
+//
+// int __sync_remove_thread_from_waiting_queue_and_delete_lock(rotlock_t *target) {
+// 	// TODO remove_wait_queue, rotunlock 순서
+// 	wait_queue_t *p_wait_queue_to_be_removed = NULL;
+// 	mutex_lock(&rotlock_mutex);
+//
+// 	delete_lock(target->type, target->degree, target->range, target->pid);
+// 	// refresh_pending_waiting_lists();
+// 	// wait_write_to_acquire();
+// 	// wait_read_to_acquire();
+//
+// 	__print_all_lists();
+// 	mutex_unlock(&rotlock_mutex);
+//
+// 	p_wait_queue_to_be_removed = __find_wait_queue(&wq_rotlock, target->pid);
+// 	pr_debug("[soo] p_wait_queue_to_be_removed: %p\n", p_wait_queue_to_be_removed);
+//
+// 	// 여기에서 현재 삭제되려는 프로세스가 이미 어콰이어되어서 없을 가능성이 있을 수 있을 것 같은데.
+// 	// do_exit() 이 인터럽트 방지가 되어있나? 안되어있음.
+// 	// remove_wait_queue(&wq_rotlock, p_wait_queue_to_be_removed);
+//
+// 	/**
+// 	 * write starvation 방지 상황이었으면, delete_lock으로 인해 어콰이어 하는 리더가 생깁니다.
+// 	 * 리스트에서도 삭제되었고, 웨이트 큐에서도 빠졌으므로 웨이팅 하고 있는 것들을 다 깨워줍니다.
+// 	 */
+// 	wake_up_interruptible_all(&wq_rotlock);
+//
+// 	return 0;
+// }
 
 int rotunlock(int type, int degree, int range, int pid)
 {
@@ -505,7 +509,12 @@ int __handle_killed_process_lock(rotlock_t *target)
 		case WAIT_READ:
 		case WAIT_WRITE:
 		case PENDING:
-			__sync_remove_thread_from_waiting_queue_and_delete_lock(target);
+			pr_debug("[soo] before\n");
+			__print_all_lists();
+			rotunlock(target->type, target->degree, target->range, target->pid);
+			// __sync_remove_thread_from_waiting_queue_and_delete_lock(target);
+			pr_debug("[soo] after\n");
+			__print_all_lists();
 			break;
 		default:
 			break;
@@ -521,8 +530,11 @@ int __handle_killed_process_lock(rotlock_t *target)
 int exit_rotlock(pid_t pid)
 {
 	rotlock_t *target = __find_rotlock_by_pid(pid);
-	if (target != NULL)
+	if (target != NULL) {
+		pr_debug("[soo] wait_queue_head_lh: %p, %p, %p\n", &((&wq_rotlock)->task_list), (&((&wq_rotlock)->task_list))->next, (&((&wq_rotlock)->task_list))->prev);
+		pr_debug("[soo] exit rotlock pid: %d / target: %p\n", pid, target);
 		__handle_killed_process_lock(target);
-	
+	}
+
 	return 0;
 }
