@@ -1,5 +1,8 @@
 # os-team2
 
+잠정적으로 temp2 브랜치로 검사해주시면 감사하겠습니다.
+현재 깃이 좀 꼬여서 풀고있는데 시간이 걸릴듯 싶습니다 ㅠㅠㅠㅠ
+
 ## CHANGE LOG
 
 Proj2 was implementing a 'rotation based lock'. Because ARTIK10 has no rotation sensor, we defined a structure 'rotation_t' which has variable 'degree' inside. And we changed that value by daemon which is given. We implemented rotation based locks that uses system call, and test function selector and trial which uses that system call. Below is the algorithm and data structure of our implement.
