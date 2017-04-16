@@ -35,7 +35,7 @@ int sys_rotunlock_read(int degree, int range) /* 0 <= degree < 360 , 0 < range <
 	pr_debug("[soo] wake up all\n");
 
 	// if (is_rotlock_deleted(p_deleted_rotlock)) {
-	// 	kfree(p_deleted_rotlock);
+	//	kfree(p_deleted_rotlock);
 	// }
 
 	/**

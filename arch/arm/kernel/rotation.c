@@ -52,7 +52,8 @@ DEFINE_MUTEX(rotlock_mutex);
  * extern rwlock impl.
  * 리스트에 접근할떄 사용되는 락입니다.
  * 리스트를 read 만 하는 경우에 있어서 readlock 이 사용되고 있습니다.
- * list_iteration_spin_lock을 써도 되지만, read에 한정되는 경우들이기도 하고, 실제적올 deprecated 를 제외하면 디버깅용 함수에만 쓰이고 있어서 공부도 할 겸 집어넣었습니다.
+ * list_iteration_spin_lock을 써도 되지만, read에 한정되는 경우들이기도 하고,
+ * 실제적올 deprecated 를 제외하면 디버깅용 함수에만 쓰이고 있어서 공부도 할 겸 집어넣었습니다.
  */
 DEFINE_RWLOCK(list_iteration_rwlock);
 
@@ -172,7 +173,8 @@ int is_acquirable(rotlock_t *p_lock)
 	if (!__is_range_contains_rotation(p_lock->degree, p_lock->range, rotation.degree))
 		return 0;
 
-	if (!list_empty(&wait_write_lh) && p_lock->type == READ_LOCK) // refresh list 과정이 전체적으로 atomic 하다는 가정 위에서 작동. wait_write_lh 의 상태가 atomic 해야. mutex 필수가 됨.
+	// refresh list 과정이 전체적으로 atomic 하다는 가정 위에서 작동. wait_write_lh 의 상태가 atomic 해야. mutex 필수가 됨.
+	if (!list_empty(&wait_write_lh) && p_lock->type == READ_LOCK)
 		return 0;
 
 	read_lock_irqsave(&list_iteration_rwlock, rwlock_flags);

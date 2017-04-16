@@ -38,7 +38,7 @@ int sys_rotlock_write(int degree, int range)
 	wait_event_interruptible(wq_rotlock, p_new_lock->status == ACQUIRED);
 
 	// if (is_rotlock_deleted(p_new_lock)) {
-	// 	kfree(p_new_lock);
+	//	kfree(p_new_lock);
 	// }
 
 	return 0;

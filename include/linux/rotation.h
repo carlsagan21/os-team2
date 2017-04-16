@@ -42,7 +42,8 @@ extern rotation_t rotation;
 
 /**
  * 시스템 콜의 critical area 의 atomicity 를 보장하기 위한 뮤텍스입니다.
- * 시스템 콜 내부에서 리스트를 다루는 여러 함수(list_add_pending, refresh_pending_waiting_lists, wait_write_to_acquire, wait_read_to_acquire)를 순차적으로 호출하게 되므로,
+ * 시스템 콜 내부에서 리스트를 다루는 여러 함수(list_add_pending, refresh_pending_waiting_lists, wait_write_to_acquire, wait_read_to_acquire)를
+ * 순차적으로 호출하게 되므로,
  * 이것들을 익스클루시브 하게 만들어줄 필요가 있습니다.
  */
 extern struct mutex rotlock_mutex;
@@ -71,7 +72,8 @@ typedef struct __rotlock_t {
 } rotlock_t;
 
 /**
- *  deprecated. 현재 리스트들의 상태와 새로운 락을 비교하여 락을 잡을 수 있는지 여부를 판단합니다. 최초에는 필요하였으나 지금은 deprecated 되었습니다.
+ * deprecated. 현재 리스트들의 상태와 새로운 락을 비교하여 락을 잡을 수 있는지 여부를 판단합니다.
+ * 최초에는 필요하였으나 지금은 deprecated 되었습니다.
  */
 int is_acquirable(rotlock_t *p_lock);
 
@@ -81,7 +83,8 @@ int is_acquirable(rotlock_t *p_lock);
 int list_add_pending(rotlock_t *p_pending_lock);
 
 /**
- * pending 리스트와 wait list 들을 재구성합니다. 현재 로테이션을 기준으로 하여, 로테이션을 포함하는 rotlock들은 waiting 으로, 로테이션을 포함하지 않는 것들은 pending 으로 보냅니다.
+ * pending 리스트와 wait list 들을 재구성합니다. 현재 로테이션을 기준으로 하여,
+ * 로테이션을 포함하는 rotlock들은 waiting 으로, 로테이션을 포함하지 않는 것들은 pending 으로 보냅니다.
  */
 int refresh_pending_waiting_lists(void);
 
