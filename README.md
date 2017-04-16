@@ -2,8 +2,6 @@
 
 ## CHANGE LOG
 
-# OS Team2 Project2 doc
-
 Proj2 was implementing a 'rotation based lock'. Because ARTIK10 has no rotation sensor, we defined a structure 'rotation_t' which has variable 'degree' inside. And we changed that value by daemon which is given. We implemented rotation based locks that uses system call, and test function selector and trial which uses that system call. Below is the algorithm and data structure of our implement.
 
 - All reading and writing processes 1 on 1 corresponds the structure '__rotlock_t'. And those are controlled by the functions which handles that structure.
