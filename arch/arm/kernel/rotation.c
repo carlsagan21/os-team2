@@ -357,78 +357,122 @@ void __print_all_lists(void)
 	read_unlock_irqrestore(&list_iteration_rwlock, rwlock_flags);
 }
 
-rotlock_t* __pid_find_location_ret_rotlock(pid_t pid){
+rotlock_t *__find_rotlock_by_pid(pid_t pid)
+{
+	int is_rotlock_found;
+	rotlock_t *p_found_lock = NULL;
 	spin_lock_irqsave(&list_iteration_spin_lock, spin_lock_flags);
-	//flag for finding process with same pid, 0 => false 1 => true
-	int status = 0;
-	rotlock_t* res;
 
-	list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
-		if(p_lock->pid == pid){
-			status = 1;
-			res = p_lock;
-			break;
+	// flag for finding process with same pid, 0 => false 1 => true
+	is_rotlock_found = 0;
+
+	if (is_rotlock_found != 1) {
+		list_for_each_entry_safe(p_lock, p_temp_lock, &pending_lh, list_node) {
+			if (p_lock->pid == pid) {
+				is_rotlock_found = 1;
+				p_found_lock = p_lock;
+				break;
+			}
 		}
 	}
 
-	if(status!=1){
+	
+	if (is_rotlock_found != 1) {
 		list_for_each_entry_safe(p_lock, p_temp_lock, &wait_read_lh, list_node) {
-			if(p_lock->pid == pid){
-				status = 1;
-				res = p_lock;
+			if(p_lock->pid == pid) {
+				is_rotlock_found = 1;
+				p_found_lock = p_lock;
 				break;
 			}
 		}
 	}
-
-	if(status!=1){
+	
+	if (is_rotlock_found != 1) {
 		list_for_each_entry_safe(p_lock, p_temp_lock, &wait_write_lh, list_node) {
-			if(p_lock->pid == pid){
-				status = 1;
-				res = p_lock;
+			if(p_lock->pid == pid) {
+				is_rotlock_found = 1;
+				p_found_lock = p_lock;
 				break;
 			}
 		}
 	}
 
-	if(status!=1){
-		list_for_each_entry_safe(p_acquired_lock, p_acquired_safe_lock, &acquired_lh, list_node) {
-			if(p_lock->pid == pid){
-				status = 1;
-				res = p_lock;
+	if (is_rotlock_found != 1) {
+		list_for_each_entry_safe(p_lock, p_temp_lock, &acquired_lh, list_node) {
+			if(p_lock->pid == pid) {
+				is_rotlock_found = 1;
+				p_found_lock = p_lock;
 				break;
 			}
 		}
 	}
 
 	spin_unlock_irqrestore(&list_iteration_spin_lock, spin_lock_flags);
-	return res;
+	return p_found_lock;
 }
 
-wait_queue_t* __find_element_from_wait_queue(pid_t pid){
-	wait_queue_t* p_thread;
-	wait_queue_t* p_temp_thread;
-	list_for_each_entry_safe(p_thread,p_temp_thread,&(wq_rotlock.task_list),task_list){
-		struct task_struct* target = p_thread->private;
-		if(target->pid==pid) return p_thread;
+wait_queue_t *__find_wait_queue(wait_queue_head_t *q, pid_t pid)
+{
+	wait_queue_t *p_wq;
+	wait_queue_t *p_temp_wq;
+	int is_wq_found = 0;
+	wait_queue_t *p_found_wq = NULL;
+	unsigned long flags;
+	
+	spin_lock_irqsave(&q->lock, flags);
+
+	list_for_each_entry_safe(p_wq, p_temp_wq, &(q->task_list), task_list) {
+		struct task_struct *p_task = (struct task_struct *)p_wq->private;
+		if (p_task->pid == pid) {
+			is_wq_found = 1;
+			p_found_wq = p_wq;
+			break;
+		}
 	}
-	//If not found(No possiblity) return something?
-	return p_thread;
+
+	spin_unlock_irqrestore(&q->lock, flags);
+	// if not found(No possiblity), return NULL
+	// actually higly possible
+	return p_found_wq;
 }
 
-int __sync_remove_thread_from_waiting_queue_and_delete_lock(rotlock_t *target){
-	wait_queue_t *killedProcessThread = __find_element_from_wait_queue(target->pid);
-	remove_wait_queue(&wq_rotlock,killedProcessThread);
-	delete_lock(target->type,target->degree,target->range,target->pid);
+int __sync_remove_thread_from_waiting_queue_and_delete_lock(rotlock_t *target) {
+	// TODO remove_wait_queue, rotunlock 순서
+	wait_queue_t *p_wait_queue_to_be_removed = NULL;
+	mutex_lock(&rotlock_mutex);
+
+	delete_lock(target->type, target->degree, target->range, target->pid);
+	// refresh_pending_waiting_lists();
+	// wait_write_to_acquire();
+	// wait_read_to_acquire();
+
+	__print_all_lists();
+	mutex_unlock(&rotlock_mutex);
+
+	p_wait_queue_to_be_removed = __find_wait_queue(&wq_rotlock, target->pid);
+	// 여기에서 현재 삭제되려는 프로세스가 이미 어콰이어되어서 없을 가능성이 있을 수 있을 것 같은데.
+	// do_exit() 이 인터럽트 방지가 되어있나?
+	remove_wait_queue(&wq_rotlock, p_wait_queue_to_be_removed);
+	
+	/**
+	 * write starvation 방지 상황이었으면, delete_lock으로 인해 어콰이어 하는 리더가 생깁니다.
+	 * 리스트에서도 삭제되었고, 웨이트 큐에서도 빠졌으므로 웨이팅 하고 있는 것들을 다 깨워줍니다.
+	 */
+	wake_up_interruptible_all(&wq_rotlock);
+	
 	return 0;
 }
 
-int __rotunlock_read(int degree, int range,int pid) /* 0 <= degree < 360 , 0 < range < 180 */
+int rotunlock(int type, int degree, int range, int pid)
 {
-	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
+	/*
+	 * mutually exclusive 한 리스트 수정.
+	 * kill, interrupt 를 막음.
+	 * 리스트에서 찾아서 삭제하고, 리스트를 재조정함.
+	 */
+	mutex_lock(&rotlock_mutex);
 
-	// p_deleted_rotlock = delete_lock(READ_LOCK, degree, range, pid);
-	delete_lock(READ_LOCK, degree, range, pid);
+	delete_lock(type, degree, range, pid);
 	refresh_pending_waiting_lists();
 	wait_write_to_acquire();
 	wait_read_to_acquire();
@@ -436,41 +480,27 @@ int __rotunlock_read(int degree, int range,int pid) /* 0 <= degree < 360 , 0 < r
 	__print_all_lists();
 	mutex_unlock(&rotlock_mutex);
 
+	pr_debug("[soo] wake up all\n");
+
+	// if (is_rotlock_deleted(p_deleted_rotlock)) {
+	//	kfree(p_deleted_rotlock);
+	// }
+
+	/**
+	 * wait_event_interruptible로 인해 자고있는 interruped 된 것들을 모두 깨움. 깨워서 컨디션 체크 유도.
+	 * 새롭게 acquired 된 것들이 있으면 wakeup.
+	 */
 	wake_up_interruptible_all(&wq_rotlock);
+
 	return 0;
 };
 
-int __rotunlock_write(int degree, int range,int pid) /* degree - range <= LOCK RANGE <= degree + range */
+
+int __handle_killed_process_lock(rotlock_t *target)
 {
-	mutex_lock(&rotlock_mutex); // kill, interrupt 를 막아버림.
-
-	delete_lock(WRITE_LOCK, degree, range, pid);
-	refresh_pending_waiting_lists();
-	wait_write_to_acquire();
-	wait_read_to_acquire();
-
-	__print_all_lists();
-	mutex_unlock(&rotlock_mutex);
-
-	wake_up_interruptible_all(&wq_rotlock);
-
-	return 0;
-};
-
-
-int __handle_killed_process_lock(rotlock_t* target){
-	switch(target->status){
+	switch (target->status) {
 		case ACQUIRED:
-			switch(target->type){
-				case READ_LOCK:
-					__rotunlock_read(target->degree,target->range,target->pid);
-					break;
-				case WRITE_LOCK:
-					__rotunlock_write(target->degree,target->range,target->pid);
-					break;
-				default:
-					break;
-			}
+			rotunlock(target->type, target->degree, target->range, target->pid);
 			break;
 		case WAIT_READ:
 		case WAIT_WRITE:
@@ -480,11 +510,19 @@ int __handle_killed_process_lock(rotlock_t* target){
 		default:
 			break;
 	}
+
 	return 0;
 }
 
-int exit_rotlock(pid_t pid) {
-	rotlock_t* target = __pid_find_location_ret_rotlock(pid);
-	__handle_killed_process_lock(target);
- return 0;
-} // kernel/exit.c 의 do_exit() 안에 insert.
+/**
+ * kernel/exit.c 의 do_exit() 안에 insert.
+ * 스레드가 종료될 경우, 혹시 리스트에 남아있거나 웨이팅큐에 남아있는지 확인하고 처리해줍니다.
+ */
+int exit_rotlock(pid_t pid)
+{
+	rotlock_t *target = __find_rotlock_by_pid(pid);
+	if (target != NULL)
+		__handle_killed_process_lock(target);
+	
+	return 0;
+}

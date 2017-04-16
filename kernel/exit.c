@@ -792,7 +792,7 @@ void do_exit(long code)
 	audit_free(tsk);
 
 	/* Insert exit_rotlock before specific procedures are executed */
-	exit_rotlock(current->pid);
+	exit_rotlock(task_pid_nr(current));
 
 	tsk->exit_code = code;
 	taskstats_exit(tsk, group_dead);

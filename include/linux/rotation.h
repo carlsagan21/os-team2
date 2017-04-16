@@ -105,4 +105,6 @@ int delete_lock(int type, int degree, int range, int pid);
  */
 void __print_all_lists(void);
 
+int rotunlock(int type, int degree, int range, int pid);
+
 int exit_rotlock(pid_t pid);
