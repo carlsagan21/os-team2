@@ -792,7 +792,9 @@ void do_exit(long code)
 	audit_free(tsk);
 
 	/* Insert exit_rotlock before specific procedures are executed */
-	exit_rotlock(task_pid_nr(current));
+	exit_rotlock(tsk->pid);
+	// printk(KERN_ALERT
+	// 	"[soo] infinite? %d\n", current->pid);
 
 	tsk->exit_code = code;
 	taskstats_exit(tsk, group_dead);

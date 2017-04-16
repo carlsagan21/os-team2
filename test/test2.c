@@ -48,13 +48,12 @@ int main() {
 	// syscall(__NR_rotlock_write, 45, 20);
 	// syscall(__NR_rotunlock_write, 45, 20);
 
-	printf("read aquire\n");
+	printf("write wait\n");
 	syscall(__NR_set_rotation, 45);
-	syscall(__NR_rotlock_read, 45, 20);
-	printf("read aquire success\n");
-	while(1){
-		;
-	}
+	syscall(__NR_rotlock_write, 45, 20);
+	// while(1){
+	// 	;
+	// }
 	// syscall(__NR_rotunlock_read, 45, 20);
 
 	// printf("write aquire\n");
