@@ -467,13 +467,13 @@ struct rq {
 	int skip_clock_update; //NOTE soo clock update 를 스킵하도록 하는 flag. 0보다 크면 스킵.
 
 	/* capture load from *all* tasks on this cpu: */
-	struct load_weight load; // NOTE: woong, cpu load is number of tasks running(task_running + TASK_UNINTERRUPTIBLE) // cpu load average to be used for load balancing
+	struct load_weight load; // NOTE: woong, cpu load is number(?) of tasks running(task_running + TASK_UNINTERRUPTIBLE) // cpu load average to be used for load balancing
 	unsigned long nr_load_updates;
 	u64 nr_switches;
 
 	struct cfs_rq cfs; //NOTE : woong rq of tasks under cfs scheduler
 	struct rt_rq rt; //NOTE : woong rq of tasks under cfs scheduler
-	struct wrr_req wrr //NOTE : woong rq of takss under scheduler
+	struct wrr_rq wrr //NOTE : woong rq of takss under scheduler
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
