@@ -489,7 +489,7 @@ struct rq {
 
 //NOTE wonog: add wrr_rq related list
 	/* list of leaf wrr_rq on this cpu: */
-	struct list_head leaf_wrr_rq_list;
+// 	struct list_head leaf_wrr_rq_list;
 
 	/*
 	 * This is part of a global counter where only the total sum
