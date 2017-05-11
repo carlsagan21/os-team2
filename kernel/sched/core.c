@@ -667,18 +667,18 @@ static inline bool got_nohz_idle_kick(void)
 #ifdef CONFIG_NO_HZ_FULL
 bool sched_can_stop_tick(void)
 {
-       struct rq *rq;
+	struct rq *rq;
 
-       rq = this_rq();
+	rq = this_rq();
 
-       /* Make sure rq->nr_running update is visible after the IPI */
-       smp_rmb();
+	/* Make sure rq->nr_running update is visible after the IPI */
+	smp_rmb();
 
-       /* More than one running task need preemption */
-       if (rq->nr_running > 1)
-               return false;
+	/* More than one running task need preemption */
+	if (rq->nr_running > 1)
+		return false;
 
-       return true;
+	return true;
 }
 #endif /* CONFIG_NO_HZ_FULL */
 
@@ -861,6 +861,8 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
 #endif
 }
 
+//NOTE soo 위의 함수는 hotplug cpu의 처리에 사용됩니다. usb 처럼 cpu 소켓을 교체하는 상황을 가정해 보겠습니다.
+// 현재 실행중인 프로세스의 nice를 최대로 상향해서 , stopmachine에 필요한 급한 연산을 처리하기 위해 사용됩니다.
 void sched_set_stop_task(int cpu, struct task_struct *stop)
 {
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
@@ -946,21 +948,27 @@ static int effective_prio(struct task_struct *p)
  */
 inline int task_curr(const struct task_struct *p)
 {
-	return cpu_curr(task_cpu(p)) == p;
+	return cpu_curr(task_cpu(p)) == p; //NOTE soo rq->curr 와 p 비교
 }
 
 static inline void check_class_changed(struct rq *rq, struct task_struct *p,
 				       const struct sched_class *prev_class,
 				       int oldprio)
 {
-	if (prev_class != p->sched_class) {
+	if (prev_class != p->sched_class) { //NOTE soo sched_class 가 바뀌면
+		//NOTE switched_from 이 클래스에 구현되어 있으면.
+		// rt 의 경우 single core 에서 switched_from 이 정의되어 있지 않다
 		if (prev_class->switched_from)
-			prev_class->switched_from(rq, p);
-		p->sched_class->switched_to(rq, p);
-	} else if (oldprio != p->prio)
+			prev_class->switched_from(rq, p); //NOTE prev 의 switched_from
+		p->sched_class->switched_to(rq, p); //NOTE 바뀐 클래스의 switched_to 가 호출
+	} else if (oldprio != p->prio) //NOTE soo p->prio 가 바뀌면
 		p->sched_class->prio_changed(rq, p, oldprio);
 }
 
+//NOTE soo
+// 위의 함수는 현재 실행중인 프로세스가 preempt되어야 하는지 검사해서 여러 조건이 충족하면, set_tsk_need_resched()를
+// 설정해 schedule()함수를 호출합니다.
+// 현재의 running task 가 new task 에 의해 preempted 될 수 있는지 확인
 void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
 {
 	const struct sched_class *class;
@@ -1047,6 +1055,8 @@ struct migration_arg {
 
 static int migration_cpu_stop(void *data);
 
+//NOTE soo 이 함수는 p가 match_state에 해당하고 (PTRACED), 런큐에서 제거 될때 까지 wait하는 함수이며
+// ptrace 디버깅 관련 부분에서 조금 사용됩니다.
 /*
  * wait_task_inactive - wait for a thread to unschedule.
  *
@@ -1155,6 +1165,9 @@ unsigned long wait_task_inactive(struct task_struct *p, long match_state)
 	return ncsw;
 }
 
+//NOTE soo 위의 함수는  다른 cpu에서 실행중인 process p를 커널 모드로 진입하게 하는 함수입니다.
+// 구현 방법은 다른 cpu로 interprocessor interrupt를 송신해  , 인터럽트를 유발해  커널 모드로 진입케 합니다.
+// 여러곳에서 유용하게 사용될 수 있습니다.
 /***
  * kick_process - kick a running thread to enter/exit the kernel
  * @p: the to-be-kicked thread
@@ -1255,6 +1268,12 @@ out:
 	return dest_cpu;
 }
 
+//NOTE soo 위의 함수는 아주 중요하고 이해하기 어려운 함수중 하나입니다.
+// 새로운 프로세스를 실행시키는 fork()나  sleep 상태에 깨어날 때 , 로드 밸런싱을 위해 ,
+// 부모 프로세스가  수행되던 혹은 sleep 전에 수행됐던 cpu에서 계속 실행할지 ,
+// 아니면 다른 cpu로 옮겨 실행 시킬지를 결정하는 함수입니다.
+// 일종의 passive 한 load balancing이라 할 수 있고 ,
+// active 한 load balancing은 rebalance_domain()함수라 할 수 있습니다.
 /*
  * The caller (fork, wakeup) owns p->pi_lock, ->cpus_allowed is stable.
  */
@@ -2104,12 +2123,14 @@ unsigned long nr_iowait(void)
 unsigned long nr_iowait_cpu(int cpu)
 {
 	struct rq *this = cpu_rq(cpu);
+
 	return atomic_read(&this->nr_iowait);
 }
 
 unsigned long this_cpu_load(void)
 {
 	struct rq *this = this_rq();
+
 	return this->cpu_load[0];
 }
 
@@ -2127,7 +2148,7 @@ unsigned long this_cpu_load(void)
  *
  *   nr_active = 0;
  *   for_each_possible_cpu(cpu)
- *   	nr_active += cpu_of(cpu)->nr_running + cpu_of(cpu)->nr_uninterruptible;
+ *    nr_active += cpu_of(cpu)->nr_running + cpu_of(cpu)->nr_uninterruptible;
  *
  *   avenrun[n] = avenrun[0] * exp_n + nr_active * (1 - exp_n)
  *
@@ -2292,6 +2313,7 @@ void calc_load_enter_idle(void)
 	delta = calc_load_fold_active(this_rq);
 	if (delta) {
 		int idx = calc_load_write_idx();
+
 		atomic_long_add(delta, &calc_load_idle[idx]);
 	}
 }
@@ -3468,6 +3490,7 @@ EXPORT_SYMBOL(wait_for_completion_io_timeout);
 int __sched wait_for_completion_interruptible(struct completion *x)
 {
 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE);
+
 	if (t == -ERESTARTSYS)
 		return t;
 	return 0;
@@ -3505,6 +3528,7 @@ EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
 int __sched wait_for_completion_killable(struct completion *x)
 {
 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_KILLABLE);
+
 	if (t == -ERESTARTSYS)
 		return t;
 	return 0;
@@ -3715,6 +3739,7 @@ void set_user_nice(struct task_struct *p, long nice)
 		p->static_prio = NICE_TO_PRIO(nice);
 		goto out_unlock;
 	}
+	// TODO task_has_wrr_policy 도 필요한가?
 	on_rq = p->on_rq;
 	if (on_rq)
 		dequeue_task(rq, p, 0);
@@ -3875,8 +3900,7 @@ __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 		if (cpumask_equal(&p->cpus_allowed, cpu_all_mask))
 			do_set_cpus_allowed(p, &hmp_slow_cpu_mask);
 #endif
-	}
-	else
+	} else
 		p->sched_class = &fair_sched_class;
 	set_load_weight(p);
 }
@@ -4466,7 +4490,7 @@ EXPORT_SYMBOL(__cond_resched_softirq);
  * Typical broken usage is:
  *
  * while (!event)
- * 	yield();
+ *  yield();
  *
  * where one assumes that yield() will let 'the other' process run that will
  * make event true. If the current task is a SCHED_FIFO task that will never
@@ -4987,6 +5011,7 @@ void idle_task_exit(void)
 static void calc_load_migrate(struct rq *rq)
 {
 	long delta = calc_load_fold_active(rq);
+
 	if (delta)
 		atomic_long_add(delta, &calc_load_tasks);
 }
@@ -5731,6 +5756,7 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 	/* Remove the sched domains which do not contribute to scheduling. */
 	for (tmp = sd; tmp; ) {
 		struct sched_domain *parent = tmp->parent;
+
 		if (!parent)
 			break;
 
@@ -6031,7 +6057,7 @@ static void init_sched_groups_power(int cpu, struct sched_domain *sd)
 
 int __weak arch_sd_sibling_asym_packing(void)
 {
-       return 0*SD_ASYM_PACKING;
+	return 0*SD_ASYM_PACKING;
 }
 
 /*
@@ -6047,7 +6073,7 @@ int __weak arch_sd_sibling_asym_packing(void)
 
 #define SD_INIT_FUNC(type)						\
 static noinline struct sched_domain *					\
-sd_init_##type(struct sched_domain_topology_level *tl, int cpu) 	\
+sd_init_##type(struct sched_domain_topology_level *tl, int cpu)	\
 {									\
 	struct sched_domain *sd = *per_cpu_ptr(tl->data.sd, cpu);	\
 	*sd = SD_##type##_INIT;						\
@@ -6058,13 +6084,13 @@ sd_init_##type(struct sched_domain_topology_level *tl, int cpu) 	\
 
 SD_INIT_FUNC(CPU)
 #ifdef CONFIG_SCHED_SMT
- SD_INIT_FUNC(SIBLING)
+SD_INIT_FUNC(SIBLING)
 #endif
 #ifdef CONFIG_SCHED_MC
- SD_INIT_FUNC(MC)
+SD_INIT_FUNC(MC)
 #endif
 #ifdef CONFIG_SCHED_BOOK
- SD_INIT_FUNC(BOOK)
+SD_INIT_FUNC(BOOK)
 #endif
 
 static int default_relax_domain_level = -1;
@@ -6249,7 +6275,7 @@ static const struct cpumask *sd_numa_mask(int cpu)
 static void sched_numa_warn(const char *str)
 {
 	static int done = false;
-	int i,j;
+	int i, j;
 
 	if (done)
 		return;
@@ -6261,7 +6287,7 @@ static void sched_numa_warn(const char *str)
 	for (i = 0; i < nr_node_ids; i++) {
 		printk(KERN_WARNING "  ");
 		for (j = 0; j < nr_node_ids; j++)
-			printk(KERN_CONT "%02d ", node_distance(i,j));
+			printk(KERN_CONT "%02d ", node_distance(i, j));
 		printk(KERN_CONT "\n");
 	}
 	printk(KERN_WARNING "\n");
@@ -6326,7 +6352,8 @@ static void sched_init_numa(void)
 				sched_domains_numa_distance[level++] = next_distance;
 				sched_domains_numa_levels = level;
 				curr_distance = next_distance;
-			} else break;
+			} else
+				break;
 		}
 
 		/*
@@ -6370,6 +6397,7 @@ static void sched_init_numa(void)
 
 		for (j = 0; j < nr_node_ids; j++) {
 			struct cpumask *mask = kzalloc(cpumask_size(), GFP_KERNEL);
+
 			if (!mask)
 				return;
 
@@ -6428,6 +6456,7 @@ static void sched_domains_numa_masks_set(int cpu)
 static void sched_domains_numa_masks_clear(int cpu)
 {
 	int i, j;
+
 	for (i = 0; i < sched_domains_numa_levels; i++) {
 		for (j = 0; j < nr_node_ids; j++)
 			cpumask_clear_cpu(cpu, sched_domains_numa_masks[i][j]);
@@ -6497,7 +6526,7 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 			struct sched_group *sg;
 			struct sched_group_power *sgp;
 
-		       	sd = kzalloc_node(sizeof(struct sched_domain) + cpumask_size(),
+			sd = kzalloc_node(sizeof(struct sched_domain) + cpumask_size(),
 					GFP_KERNEL, cpu_to_node(j));
 			if (!sd)
 				return -ENOMEM;
@@ -6563,6 +6592,7 @@ struct sched_domain *build_sched_domain(struct sched_domain_topology_level *tl,
 		int cpu)
 {
 	struct sched_domain *sd = tl->init(tl, cpu);
+
 	if (!sd)
 		return child;
 
@@ -6694,6 +6724,7 @@ cpumask_var_t *alloc_sched_domains(unsigned int ndoms)
 void free_sched_domains(cpumask_var_t doms[], unsigned int ndoms)
 {
 	unsigned int i;
+
 	for (i = 0; i < ndoms; i++)
 		free_cpumask_var(doms[i]);
 	kfree(doms);

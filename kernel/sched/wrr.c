@@ -3,6 +3,13 @@
 
 #include "sched.h"
 
+// active load balancing
+// TODO rebalance_wrr_rqs()
+// TODO find_busiest_wrr_rq()
+// TODO update_wrr_rq_load()
+
+
+
 /*rt
  * Adding/removing a task to/from a priority array:
  */

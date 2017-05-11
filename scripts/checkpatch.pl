@@ -3493,16 +3493,16 @@ sub process {
 
 				$pointer = "" if (!defined $pointer);
 
-				if (WARN("UNSPECIFIED_INT",
-					 "Prefer '" . trim($sign) . " int" . rtrim($pointer) . "' to bare use of '$sign" . rtrim($pointer) . "'\n" . $herecurr) &&
-				    $fix) {
-					my $decl = trim($sign) . " int ";
-					my $comp_pointer = $pointer;
-					$comp_pointer =~ s/\s//g;
-					$decl .= $comp_pointer;
-					$decl = rtrim($decl) if ($var eq "");
-					$fixed[$fixlinenr] =~ s@\b$sign\s*\Q$pointer\E\s*$var\b@$decl$var@;
-				}
+				# if (WARN("UNSPECIFIED_INT",
+				# 	 "Prefer '" . trim($sign) . " int" . rtrim($pointer) . "' to bare use of '$sign" . rtrim($pointer) . "'\n" . $herecurr) &&
+				#     $fix) {
+				# 	my $decl = trim($sign) . " int ";
+				# 	my $comp_pointer = $pointer;
+				# 	$comp_pointer =~ s/\s//g;
+				# 	$decl .= $comp_pointer;
+				# 	$decl = rtrim($decl) if ($var eq "");
+				# 	$fixed[$fixlinenr] =~ s@\b$sign\s*\Q$pointer\E\s*$var\b@$decl$var@;
+				# }
 			}
 		}
 
@@ -3786,10 +3786,10 @@ sub process {
 		}
 
 # check for uses of printk_ratelimit
-		if ($line =~ /\bprintk_ratelimit\s*\(/) {
-			WARN("PRINTK_RATELIMITED",
-			     "Prefer printk_ratelimited or pr_<level>_ratelimited to printk_ratelimit\n" . $herecurr);
-		}
+		# if ($line =~ /\bprintk_ratelimit\s*\(/) {
+		# 	WARN("PRINTK_RATELIMITED",
+		# 	     "Prefer printk_ratelimited or pr_<level>_ratelimited to printk_ratelimit\n" . $herecurr);
+		# }
 
 # printk should use KERN_* levels.  Note that follow on printk's on the
 # same line do not need a level, so we use the current block context
@@ -4877,8 +4877,8 @@ sub process {
 					ERROR("MULTISTATEMENT_MACRO_USE_DO_WHILE",
 					      "Macros with multiple statements should be enclosed in a do - while loop\n" . "$herectx");
 				} else {
-					ERROR("COMPLEX_MACRO",
-					      "Macros with complex values should be enclosed in parentheses\n" . "$herectx");
+					# ERROR("COMPLEX_MACRO",
+					#       "Macros with complex values should be enclosed in parentheses\n" . "$herectx");
 				}
 
 			}
@@ -5163,30 +5163,30 @@ sub process {
 		if ($line =~ /^\+\s*$String/ &&
 		    $prevline =~ /"\s*$/ &&
 		    $prevrawline !~ /(?:\\(?:[ntr]|[0-7]{1,3}|x[0-9a-fA-F]{1,2})|;\s*|\{\s*)"\s*$/) {
-			if (WARN("SPLIT_STRING",
-				 "quoted string split across lines\n" . $hereprev) &&
-				     $fix &&
-				     $prevrawline =~ /^\+.*"\s*$/ &&
-				     $last_coalesced_string_linenr != $linenr - 1) {
-				my $extracted_string = get_quoted_string($line, $rawline);
-				my $comma_close = "";
-				if ($rawline =~ /\Q$extracted_string\E(\s*\)\s*;\s*$|\s*,\s*)/) {
-					$comma_close = $1;
-				}
-
-				fix_delete_line($fixlinenr - 1, $prevrawline);
-				fix_delete_line($fixlinenr, $rawline);
-				my $fixedline = $prevrawline;
-				$fixedline =~ s/"\s*$//;
-				$fixedline .= substr($extracted_string, 1) . trim($comma_close);
-				fix_insert_line($fixlinenr - 1, $fixedline);
-				$fixedline = $rawline;
-				$fixedline =~ s/\Q$extracted_string\E\Q$comma_close\E//;
-				if ($fixedline !~ /\+\s*$/) {
-					fix_insert_line($fixlinenr, $fixedline);
-				}
-				$last_coalesced_string_linenr = $linenr;
-			}
+			# if (WARN("SPLIT_STRING",
+			# 	 "quoted string split across lines\n" . $hereprev) &&
+			# 	     $fix &&
+			# 	     $prevrawline =~ /^\+.*"\s*$/ &&
+			# 	     $last_coalesced_string_linenr != $linenr - 1) {
+			# 	my $extracted_string = get_quoted_string($line, $rawline);
+			# 	my $comma_close = "";
+			# 	if ($rawline =~ /\Q$extracted_string\E(\s*\)\s*;\s*$|\s*,\s*)/) {
+			# 		$comma_close = $1;
+			# 	}
+			#
+			# 	fix_delete_line($fixlinenr - 1, $prevrawline);
+			# 	fix_delete_line($fixlinenr, $rawline);
+			# 	my $fixedline = $prevrawline;
+			# 	$fixedline =~ s/"\s*$//;
+			# 	$fixedline .= substr($extracted_string, 1) . trim($comma_close);
+			# 	fix_insert_line($fixlinenr - 1, $fixedline);
+			# 	$fixedline = $rawline;
+			# 	$fixedline =~ s/\Q$extracted_string\E\Q$comma_close\E//;
+			# 	if ($fixedline !~ /\+\s*$/) {
+			# 		fix_insert_line($fixlinenr, $fixedline);
+			# 	}
+			# 	$last_coalesced_string_linenr = $linenr;
+			# }
 		}
 
 # check for missing a space in a string concatenation
@@ -5329,10 +5329,10 @@ sub process {
 		}
 
 # check for logging continuations
-		if ($line =~ /\bprintk\s*\(\s*KERN_CONT\b|\bpr_cont\s*\(/) {
-			WARN("LOGGING_CONTINUATION",
-			     "Avoid logging continuation uses where feasible\n" . $herecurr);
-		}
+		# if ($line =~ /\bprintk\s*\(\s*KERN_CONT\b|\bpr_cont\s*\(/) {
+		# 	WARN("LOGGING_CONTINUATION",
+		# 	     "Avoid logging continuation uses where feasible\n" . $herecurr);
+		# }
 
 # check for mask then right shift without a parentheses
 		if ($^V && $^V ge 5.10.0 &&
@@ -5963,12 +5963,12 @@ sub process {
 				for (my $n = 0; $n < $cnt; $n++) {
 					$herectx .= raw_line($linenr, $n) . "\n";
 				}
-				if (WARN("ALLOC_WITH_MULTIPLY",
-					 "Prefer $newfunc over $oldfunc with multiply\n" . $herectx) &&
-				    $cnt == 1 &&
-				    $fix) {
-					$fixed[$fixlinenr] =~ s/\b($Lval)\s*\=\s*(?:$balanced_parens)?\s*(k[mz]alloc)\s*\(\s*($FuncArg)\s*\*\s*($FuncArg)/$1 . ' = ' . "$newfunc(" . trim($r1) . ', ' . trim($r2)/e;
-				}
+				# if (WARN("ALLOC_WITH_MULTIPLY",
+				# 	 "Prefer $newfunc over $oldfunc with multiply\n" . $herectx) &&
+				#     $cnt == 1 &&
+				#     $fix) {
+				# 	$fixed[$fixlinenr] =~ s/\b($Lval)\s*\=\s*(?:$balanced_parens)?\s*(k[mz]alloc)\s*\(\s*($FuncArg)\s*\*\s*($FuncArg)/$1 . ' = ' . "$newfunc(" . trim($r1) . ', ' . trim($r2)/e;
+				# }
 			}
 		}
 
@@ -6180,11 +6180,11 @@ sub process {
 					$fixed[$fixlinenr] =~ s/\bACCESS_ONCE\s*\(\s*\Q$par\E\s*\)\s*$eq\s*\Q$fun\E/WRITE_ONCE($par, $fun)/;
 				}
 			} else {
-				if (WARN("PREFER_READ_ONCE",
-					 "Prefer READ_ONCE(<FOO>) over ACCESS_ONCE(<FOO>)\n" . $herecurr) &&
-				    $fix) {
-					$fixed[$fixlinenr] =~ s/\bACCESS_ONCE\s*\(\s*\Q$par\E\s*\)/READ_ONCE($par)/;
-				}
+				# if (WARN("PREFER_READ_ONCE",
+				# 	 "Prefer READ_ONCE(<FOO>) over ACCESS_ONCE(<FOO>)\n" . $herecurr) &&
+				#     $fix) {
+				# 	$fixed[$fixlinenr] =~ s/\bACCESS_ONCE\s*\(\s*\Q$par\E\s*\)/READ_ONCE($par)/;
+				# }
 			}
 		}
 
