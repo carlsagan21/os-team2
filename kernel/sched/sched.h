@@ -375,6 +375,39 @@ struct rt_rq {
 #endif
 };
 
+//NOTE woong: classes containing related fiels of wrr
+struct wrr_rq {
+// 	struct rt_prio_array active;
+// 	unsigned int rt_nr_running;
+// #if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
+// 	struct {
+// 		int curr; /* highest queued rt task prio */
+// #ifdef CONFIG_SMP
+// 		int next; /* next highest */
+// #endif
+// 	} highest_prio;
+// #endif
+// #ifdef CONFIG_SMP
+// 	unsigned long rt_nr_migratory;
+// 	unsigned long rt_nr_total;
+// 	int overloaded;
+// 	struct plist_head pushable_tasks;
+// #endif
+// 	int rt_throttled;
+// 	u64 rt_time;
+// 	u64 rt_runtime;
+// 	/* Nests inside the rq lock: */
+// 	raw_spinlock_t rt_runtime_lock;
+//
+// #ifdef CONFIG_RT_GROUP_SCHED
+// 	unsigned long rt_nr_boosted;
+//
+// 	struct rq *rq;
+// 	struct list_head leaf_rt_rq_list;
+// 	struct task_group *tg;
+// #endif
+};
+
 #ifdef CONFIG_SMP
 
 /*
@@ -420,8 +453,8 @@ struct rq {
 	 * nr_running and cpu_load should be in the same cacheline because
 	 * remote CPUs use both these fields when doing load calculation.
 	 */
-	unsigned int nr_running;
-	#define CPU_LOAD_IDX_MAX 5
+	unsigned int nr_running; // NOTE: woong # of running tasks per cpu
+		#define CPU_LOAD_IDX_MAX 5
 	unsigned long cpu_load[CPU_LOAD_IDX_MAX];
 	unsigned long last_load_update_tick;
 #ifdef CONFIG_NO_HZ_COMMON
@@ -434,12 +467,13 @@ struct rq {
 	int skip_clock_update; //NOTE soo clock update 를 스킵하도록 하는 flag. 0보다 크면 스킵.
 
 	/* capture load from *all* tasks on this cpu: */
-	struct load_weight load;
+	struct load_weight load; // NOTE: woong, cpu load is number(?) of tasks running(task_running + TASK_UNINTERRUPTIBLE) // cpu load average to be used for load balancing
 	unsigned long nr_load_updates;
 	u64 nr_switches;
 
-	struct cfs_rq cfs;
-	struct rt_rq rt;
+	struct cfs_rq cfs; //NOTE : woong rq of tasks under cfs scheduler
+	struct rt_rq rt; //NOTE : woong rq of tasks under cfs scheduler
+	struct wrr_rq wrr //NOTE : woong rq of takss under scheduler
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
@@ -452,6 +486,10 @@ struct rq {
 #ifdef CONFIG_RT_GROUP_SCHED
 	struct list_head leaf_rt_rq_list;
 #endif
+
+//NOTE wonog: add wrr_rq related list
+	/* list of leaf wrr_rq on this cpu: */
+// 	struct list_head leaf_wrr_rq_list;
 
 	/*
 	 * This is part of a global counter where only the total sum
@@ -486,8 +524,8 @@ struct rq {
 	struct task_struct *migrate_task;
 #endif
 	/* cpu of this runqueue: */
-	int cpu;
-	int online;
+	int cpu; //NOTE : woong need to find out how to use cpu flag, guessing cpu number
+	int online; // NOTE : woong need to find out how to use online flag, guessing whether cpu is live or sleeping
 
 	struct list_head cfs_tasks;
 
@@ -521,7 +559,7 @@ struct rq {
 
 #ifdef CONFIG_SCHEDSTATS
 	/* latency stats */
-	struct sched_info rq_sched_info;
+	struct sched_info rq_sched_info; //NOTE: woong, sched_info defined in include/linux/sched.h
 	unsigned long long rq_cpu_time;
 	/* could above be rq->cfs_rq.exec_clock + rq->rt_rq.rt_runtime ? */
 
@@ -555,10 +593,10 @@ static inline int cpu_of(struct rq *rq)
 
 DECLARE_PER_CPU(struct rq, runqueues);
 
-#define cpu_rq(cpu)		(&per_cpu(runqueues, (cpu)))
+#define cpu_rq(cpu)		(&per_cpu(runqueues, (cpu))) //NOTE woong: seems useful
 #define this_rq()		(&__get_cpu_var(runqueues))
-#define task_rq(p)		cpu_rq(task_cpu(p))
-#define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
+#define task_rq(p)		cpu_rq(task_cpu(p)) //NOTE woong: seems useful
+#define cpu_curr(cpu)		(cpu_rq(cpu)->curr) //NOTE woong: seems useful
 #define raw_rq()		(&__raw_get_cpu_var(runqueues))
 
 #ifdef CONFIG_SMP
@@ -1022,6 +1060,7 @@ struct sched_class {
 #endif
 
 	void (*set_curr_task) (struct rq *rq);
+	//NOTE woong: task_tick function is called from the timer tick to update accounting and possibly switch to a different process
 	void (*task_tick) (struct rq *rq, struct task_struct *p, int queued);
 	void (*task_fork) (struct task_struct *p);
 
