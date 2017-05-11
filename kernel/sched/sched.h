@@ -473,7 +473,7 @@ struct rq {
 
 	struct cfs_rq cfs; //NOTE : woong rq of tasks under cfs scheduler
 	struct rt_rq rt; //NOTE : woong rq of tasks under cfs scheduler
-	struct wrr_rq wrr //NOTE : woong rq of takss under scheduler
+	struct wrr_rq wrr; //NOTE : woong rq of takss under scheduler
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
