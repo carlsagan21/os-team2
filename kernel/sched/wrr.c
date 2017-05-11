@@ -7,7 +7,9 @@
 // TODO rebalance_wrr_rqs()
 // TODO find_busiest_wrr_rq()
 // TODO update_wrr_rq_load()
-
+// TODO trigger_load_balance()
+// TODO entity 의 load는 fair의 update_entity_load_avg 호출되는 부분에서 업데이트 필요.
+// set_next_entity, put_prev_entity, entity_tick, enqueue_task, dequeue_task
 
 
 /*rt

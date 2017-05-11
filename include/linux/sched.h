@@ -1054,6 +1054,7 @@ struct sched_rt_entity {
 #endif
 };
 
+// TODO sched_wrr_entity 정의. weight 를 저장하고 task_struct 를 가리킴.
 
 struct rcu_node;
 
