@@ -290,7 +290,7 @@ const_debug unsigned int sysctl_sched_time_avg = MSEC_PER_SEC;
  * period over which we measure -rt task cpu usage in us.
  * default: 1s
  */
-unsigned int sysctl_sched_rt_period = 1000000;
+unsigned int sysctl_sched_rt_period = 1000000; //NOTE woong: reflect info when implementing wrr_sched_period, if necessary
 
 __read_mostly int scheduler_running;
 
@@ -298,7 +298,7 @@ __read_mostly int scheduler_running;
  * part of the period that we allow rt tasks to run in us.
  * default: 0.95s
  */
-int sysctl_sched_rt_runtime = 950000;
+int sysctl_sched_rt_runtime = 950000;//NOTE woong: reflect info when implementing wrr_sched_runtime, if necessary
 
 
 
@@ -358,6 +358,7 @@ task_rq_unlock(struct rq *rq, struct task_struct *p, unsigned long *flags)
 
 /*
  * this_rq_lock - lock this runqueue and disable interrupts.
+ * NOTE woong : Lock runqueue of currently working CPU(maybe...)
  */
 static struct rq *this_rq_lock(void)
 	__acquires(rq->lock)
@@ -516,6 +517,7 @@ static inline void init_hrtick(void)
  * the target CPU.
  */
 #ifdef CONFIG_SMP
+//NOTE woong: seems useful
 void resched_task(struct task_struct *p)
 {
 	int cpu;
@@ -537,6 +539,7 @@ void resched_task(struct task_struct *p)
 		smp_send_reschedule(cpu);
 }
 
+//NOTE woong: seems useful
 void resched_cpu(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
@@ -1752,7 +1755,8 @@ void sched_fork(struct task_struct *p)
 
 	if (!rt_prio(p->prio))
 		p->sched_class = &fair_sched_class;
-
+	// TODO woong : Need to intialize sched_class to wrr_sched_class if necessary
+	//p -> sched_class = &wrr_sched_class;
 	if (p->sched_class->task_fork)
 		p->sched_class->task_fork(p);
 
