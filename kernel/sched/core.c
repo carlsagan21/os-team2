@@ -123,6 +123,9 @@ void update_rq_clock(struct rq *rq)
 		return;
 
 	delta = sched_clock_cpu(cpu_of(rq)) - rq->clock;
+	//NOTE soo cpu_clock(i) provides a fast (execution time) high resolution
+	// clock with bounded drift between CPUs. The value of cpu_clock(i)
+	// is monotonic for constant i. The timestamp returned is in nanoseconds.
 	rq->clock += delta;
 	update_rq_clock_task(rq, delta);
 }
@@ -766,7 +769,7 @@ static void set_load_weight(struct task_struct *p)
 static void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	update_rq_clock(rq);
-	sched_info_queued(p);
+	sched_info_queued(p); //NOTE soo stats.c 에 로그를 쓰는 일
 	p->sched_class->enqueue_task(rq, p, flags);
 }
 
@@ -779,6 +782,8 @@ static void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 
 void activate_task(struct rq *rq, struct task_struct *p, int flags)
 {
+	//NOTE soo 특정 테스크 상태에서(TASK_UNINTERRUPTIBLE, not PF_FROZEN) 비활성된 테스크를
+	// 문자대로라면 테스크가 로드에 기여할 때에만
 	if (task_contributes_to_load(p))
 		rq->nr_uninterruptible--;
 
@@ -904,6 +909,9 @@ static inline int normal_prio(struct task_struct *p)
 
 	if (task_has_rt_policy(p))
 		prio = MAX_RT_PRIO-1 - p->rt_priority;
+	else if (task_has_wrr_policy(p))
+		// TODO soo 어떻게 고쳐야 할까? 지금은 fair와 같이 그대로 씀.
+		prio = __normal_prio(p);
 	else
 		prio = __normal_prio(p);
 	return prio;
@@ -1704,6 +1712,12 @@ void sched_fork(struct task_struct *p)
 			p->policy = SCHED_NORMAL;
 			p->static_prio = NICE_TO_PRIO(0);
 			p->rt_priority = 0;
+		} else if (task_has_wrr_policy(p)) {
+			// TODO soo 포크 하는 부분. 포크할때 prio 를 어떻게 할건지 정해줌.
+			// 부모걸 복사해오는 걸 구현해야함.
+			// p->policy = SCHED_NORMAL;
+			// p->static_prio = NICE_TO_PRIO(0);
+			// p->rt_priority = 0;
 		} else if (PRIO_TO_NICE(p->static_prio) < 0)
 			p->static_prio = NICE_TO_PRIO(0);
 
