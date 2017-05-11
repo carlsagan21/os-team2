@@ -3,6 +3,34 @@
 
 #include "sched.h"
 
+//soo
+/**************************************************************
+ * WRR operations on generic schedulable entities:
+ */
+
+static inline struct task_struct *wrr_se_task_of(struct sched_wrr_entity *se)
+{
+	return container_of(se, struct task_struct, wrr_se);
+}
+
+static inline struct rq *rq_of_wrr_rq(struct wrr_rq *wrr_rq)
+{
+	return container_of(wrr_rq, struct rq, wrr);
+}
+
+static inline struct wrr_rq *wrr_rq_of_task(struct task_struct *p)
+{
+	return &task_rq(p)->wrr;
+}
+
+static inline struct wrr_rq *wrr_rq_of_wrr_se(struct sched_wrr_entity *wrr_se)
+{
+	struct task_struct *p = wrr_se_task_of(wrr_se);
+	struct rq *rq = task_rq(p);
+
+	return &rq->wrr;
+}
+
 // active load balancing
 // TODO rebalance_wrr_rqs()
 // TODO find_busiest_wrr_rq()
@@ -11,7 +39,7 @@
 // TODO entity 의 load는 fair의 update_entity_load_avg 호출되는 부분에서 업데이트 필요.
 // set_next_entity, put_prev_entity, entity_tick, enqueue_task, dequeue_task
 
-
+//soo class methods
 /*rt
  * Adding/removing a task to/from a priority array:
  */
@@ -303,3 +331,16 @@ const struct sched_class wrr_sched_class = {
 	.task_move_group = task_move_group_wrr
 #endif
 };
+
+// for sched_debug
+#ifdef CONFIG_SCHED_DEBUG
+void print_wrr_stats(struct seq_file *m, int cpu)
+{
+	struct wrr_rq *wrr_rq;
+
+	rcu_read_lock();
+	// for_each_leaf_wrr_rq(cpu_rq(cpu), wrr_rq)
+		// print_wrr_rq(m, cpu, wrr_rq);
+	rcu_read_unlock();
+}
+#endif

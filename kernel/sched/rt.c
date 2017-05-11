@@ -197,7 +197,7 @@ err:
 	return 0;
 }
 
-#else /* CONFIG_RT_GROUP_SCHED */
+#else /* !CONFIG_RT_GROUP_SCHED */
 
 #define rt_entity_is_task(rt_se) (1)
 

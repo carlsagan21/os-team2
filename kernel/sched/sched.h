@@ -123,6 +123,7 @@ extern struct mutex sched_domains_mutex;
 
 struct cfs_rq;
 struct rt_rq;
+struct wrr_rq;
 
 extern struct list_head task_groups;
 
@@ -403,7 +404,7 @@ struct wrr_rq {
 // 	unsigned long rt_nr_boosted;
 //
 // 	struct rq *rq;
-// 	struct list_head leaf_rt_rq_list;
+	struct list_head leaf_wrr_rq_list;
 // 	struct task_group *tg;
 // #endif
 };
@@ -467,13 +468,16 @@ struct rq {
 	int skip_clock_update; //NOTE soo clock update 를 스킵하도록 하는 flag. 0보다 크면 스킵.
 
 	/* capture load from *all* tasks on this cpu: */
-	struct load_weight load; // NOTE: woong, cpu load is number(?) of tasks running(task_running + TASK_UNINTERRUPTIBLE) // cpu load average to be used for load balancing
+	struct load_weight load; // NOTE: woong, cpu load is weight of tasks running(task_running + TASK_UNINTERRUPTIBLE)
+	// cpu load average to be used for load balancing
+	//soo 더 많은 정보는 http://egloos.zum.com/nzcv/v/5795995 참조
 	unsigned long nr_load_updates;
 	u64 nr_switches;
 
 	struct cfs_rq cfs; //NOTE : woong rq of tasks under cfs scheduler
 	struct rt_rq rt; //NOTE : woong rq of tasks under cfs scheduler
 	struct wrr_rq wrr; //NOTE : woong rq of takss under scheduler
+	//NOTE soo task_struct 의 struct sched_wrr_entity wrr_se 과 구분된다.
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
@@ -489,7 +493,7 @@ struct rq {
 
 //NOTE wonog: add wrr_rq related list
 	/* list of leaf wrr_rq on this cpu: */
-// 	struct list_head leaf_wrr_rq_list;
+	struct list_head leaf_wrr_rq_list;
 
 	/*
 	 * This is part of a global counter where only the total sum
