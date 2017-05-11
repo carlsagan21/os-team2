@@ -3815,15 +3815,16 @@ sub process {
 			}
 		}
 
-		if ($line =~ /\bprintk\s*\(\s*KERN_([A-Z]+)/) {
-			my $orig = $1;
-			my $level = lc($orig);
-			$level = "warn" if ($level eq "warning");
-			my $level2 = $level;
-			$level2 = "dbg" if ($level eq "debug");
-			WARN("PREFER_PR_LEVEL",
-			     "Prefer [subsystem eg: netdev]_$level2([subsystem]dev, ... then dev_$level2(dev, ... then pr_$level(...  to printk(KERN_$orig ...\n" . $herecurr);
-		}
+		# soo printk warning
+		# if ($line =~ /\bprintk\s*\(\s*KERN_([A-Z]+)/) {
+		# 	my $orig = $1;
+		# 	my $level = lc($orig);
+		# 	$level = "warn" if ($level eq "warning");
+		# 	my $level2 = $level;
+		# 	$level2 = "dbg" if ($level eq "debug");
+		# 	WARN("PREFER_PR_LEVEL",
+		# 	     "Prefer [subsystem eg: netdev]_$level2([subsystem]dev, ... then dev_$level2(dev, ... then pr_$level(...  to printk(KERN_$orig ...\n" . $herecurr);
+		# }
 
 		if ($line =~ /\bpr_warning\s*\(/) {
 			if (WARN("PREFER_PR_LEVEL",
