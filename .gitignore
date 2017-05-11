@@ -98,3 +98,7 @@ image.tar
 modules.img
 zImage
 !.cmslab-os-project-root
+
+# soo
+test/sched_debug
+test/schedstat
