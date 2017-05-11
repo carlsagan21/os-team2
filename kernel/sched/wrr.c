@@ -23,7 +23,7 @@
 static void
 enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
-	printk(KERN_DEBUG "enqueue_task_wrr");
+	printk(KERN_DEBUG "[soo] enqueue_task_wrr");
 }
 
 /*fair
@@ -33,7 +33,7 @@ enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
  */
 static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
-	printk(KERN_DEBUG "dequeue_task_wrr");
+	printk(KERN_DEBUG "[soo] dequeue_task_wrr");
 }
 
 /*fair
@@ -43,12 +43,12 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
  */
 static void yield_task_wrr(struct rq *rq)
 {
-	printk(KERN_DEBUG "yield_task_wrr");
+	printk(KERN_DEBUG "[soo] yield_task_wrr");
 }
 
 static bool yield_to_task_wrr(struct rq *rq, struct task_struct *p, bool preempt)
 {
-	printk(KERN_DEBUG "yield_to_task_wrr");
+	printk(KERN_DEBUG "[soo] yield_to_task_wrr");
 	return false;
 }
 
@@ -57,12 +57,13 @@ static bool yield_to_task_wrr(struct rq *rq, struct task_struct *p, bool preempt
  */
 static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
-	printk(KERN_DEBUG "check_preempt_curr_wrr");
+	printk(KERN_DEBUG "[soo] check_preempt_curr_wrr");
 }
 
 static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
-	printk(KERN_DEBUG "pick_next_task_wrr");
+	//soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
+	// trace_printk(KERN_DEBUG "[soo] pick_next_task_wrr");
 	return NULL;
 }
 
@@ -71,7 +72,7 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
  */
 static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 {
-	printk(KERN_DEBUG "put_prev_task_wrr");
+	printk(KERN_DEBUG "[soo] put_prev_task_wrr");
 }
 
 /*fair
@@ -88,7 +89,7 @@ static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 static int
 select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 {
-	printk(KERN_DEBUG "select_task_rq_wrr");
+	printk(KERN_DEBUG "[soo] select_task_rq_wrr");
 	return 0;
 }
 
@@ -101,22 +102,22 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 static void
 migrate_task_rq_wrr(struct task_struct *p, int next_cpu)
 {
-	printk(KERN_DEBUG "migrate_task_rq_wrr");
+	printk(KERN_DEBUG "[soo] migrate_task_rq_wrr");
 }
 
 static void pre_schedule_wrr(struct rq *rq, struct task_struct *prev)
 {
-	printk(KERN_DEBUG "pre_schedule_wrr");
+	printk(KERN_DEBUG "[soo] pre_schedule_wrr");
 }
 
 static void post_schedule_wrr(struct rq *rq)
 {
-	printk(KERN_DEBUG "post_schedule_wrr");
+	printk(KERN_DEBUG "[soo] post_schedule_wrr");
 }
 
 static void task_waking_wrr(struct task_struct *p)
 {
-	printk(KERN_DEBUG "task_waking_wrr");
+	printk(KERN_DEBUG "[soo] task_waking_wrr");
 }
 
 /*rt
@@ -125,25 +126,25 @@ static void task_waking_wrr(struct task_struct *p)
  */
 static void task_woken_wrr(struct rq *rq, struct task_struct *p)
 {
-	printk(KERN_DEBUG "task_woken_wrr");
+	printk(KERN_DEBUG "[soo] task_woken_wrr");
 }
 
 static void set_cpus_allowed_wrr(struct task_struct *p,
 				const struct cpumask *new_mask)
 {
-	printk(KERN_DEBUG "set_cpus_allowed_wrr");
+	printk(KERN_DEBUG "[soo] set_cpus_allowed_wrr");
 }
 
 /*rt Assumes rq->lock is held */
 static void rq_online_wrr(struct rq *rq)
 {
-	printk(KERN_DEBUG "rq_online_wrr");
+	printk(KERN_DEBUG "[soo] rq_online_wrr");
 }
 
 /*rt Assumes rq->lock is held */
 static void rq_offline_wrr(struct rq *rq)
 {
-	printk(KERN_DEBUG "rq_offline_wrr");
+	printk(KERN_DEBUG "[soo] rq_offline_wrr");
 }
 
 /*fair Account for a task changing its policy or group.
@@ -153,7 +154,7 @@ static void rq_offline_wrr(struct rq *rq)
  */
 static void set_curr_task_wrr(struct rq *rq)
 {
-	printk(KERN_DEBUG "set_curr_task_wrr");
+	printk(KERN_DEBUG "[soo] set_curr_task_wrr");
 }
 
 /*fair
@@ -161,7 +162,7 @@ static void set_curr_task_wrr(struct rq *rq)
  */
 static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
 {
-	printk(KERN_DEBUG "task_tick_wrr");
+	printk(KERN_DEBUG "[soo] task_tick_wrr");
 }
 
 /*fair
@@ -171,7 +172,7 @@ static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
  */
 static void task_fork_wrr(struct task_struct *p)
 {
-	printk(KERN_DEBUG "task_fork_wrr");
+	printk(KERN_DEBUG "[soo] task_fork_wrr");
 }
 
 /*rt
