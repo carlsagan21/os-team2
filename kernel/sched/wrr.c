@@ -1,4 +1,7 @@
 #include <linux/kernel.h>
+#include <linux/sched.h>
+
+#include "sched.h"
 
 /*rt
  * Adding/removing a task to/from a priority array:
@@ -37,6 +40,7 @@ static void yield_task_wrr(struct rq *rq)
 static bool yield_to_task_wrr(struct rq *rq, struct task_struct *p, bool preempt)
 {
 	printk(KERN_DEBUG "yield_to_task_wrr");
+	return false;
 }
 
 /*rt, fair
@@ -50,6 +54,7 @@ static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int fla
 static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
 	printk(KERN_DEBUG "pick_next_task_wrr");
+	return NULL;
 }
 
 /*fair
@@ -75,6 +80,7 @@ static int
 select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 {
 	printk(KERN_DEBUG "select_task_rq_wrr");
+	return 0;
 }
 
 /*fair
@@ -198,6 +204,7 @@ prio_changed_wrr(struct rq *rq, struct task_struct *p, int oldprio)
 static unsigned int get_rr_interval_wrr(struct rq *rq, struct task_struct *task)
 {
 	printk(KERN_DEBUG "get_rr_interval_wrr");
+	return 0;
 }
 
 static void task_move_group_wrr(struct task_struct *p, int on_rq)
@@ -206,7 +213,7 @@ static void task_move_group_wrr(struct task_struct *p, int on_rq)
 }
 
 
-const struct sched_class wrr_sched_class {
+const struct sched_class wrr_sched_class = {
 	//	const struct sched_class *next;
 	.next			= &fair_sched_class, // fair 여야 함. rt.c 를 wrr 로 바꾸고.
 

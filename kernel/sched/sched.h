@@ -84,6 +84,21 @@ static inline int task_has_rt_policy(struct task_struct *p)
 	return rt_policy(p->policy);
 }
 
+//NOTE soo 지금 구현상 task_has_rt_policy 가 true 이면 rt, false 이면 fair 로
+// 전반적으로 구현되어있다. 이 함수만으로는 wrr 인지 fair 인지 구분할 수 없으므로,
+// wrr_policy 를 추가하여 task_has_rt_policy 가 쓰이는 모든 곳에 추가해야 한다.
+static inline int wrr_policy(int policy)
+{
+	if (policy == SCHED_WRR)
+		return 1;
+	return 0;
+}
+
+static inline int task_has_wrr_policy(struct task_struct *p)
+{
+	return wrr_policy(p->policy);
+}
+
 /*
  * This is the priority-queue data structure of the RT scheduling class:
  */
@@ -237,6 +252,7 @@ struct cfs_bandwidth { };
 #endif	/* CONFIG_CGROUP_SCHED */
 
 /* CFS-related fields in a runqueue */
+//NOTE soo CFS rq. rq 안에 내부적으로 사용.
 struct cfs_rq {
 	struct load_weight load;
 	unsigned int nr_running, h_nr_running;
@@ -326,6 +342,7 @@ static inline int rt_bandwidth_enabled(void)
 }
 
 /* Real-Time classes' related field in a runqueue: */
+//NOTE soo rt_rq. rq 안에 내부적으로 사용됨.
 struct rt_rq {
 	struct rt_prio_array active;
 	unsigned int rt_nr_running;
@@ -427,6 +444,7 @@ extern struct root_domain def_root_domain;
  * (such as the load balancing or the thread migration code), lock
  * acquire operations must be ordered by ascending &runqueue.
  */
+//NOTE soo runqueue 정의
 struct rq {
 	/* runqueue lock: */
 	raw_spinlock_t lock;
@@ -446,7 +464,7 @@ struct rq {
 #ifdef CONFIG_NO_HZ_FULL
 	unsigned long last_sched_tick;
 #endif
-	int skip_clock_update;
+	int skip_clock_update; //NOTE soo clock update 를 스킵하도록 하는 flag. 0보다 크면 스킵.
 
 	/* capture load from *all* tasks on this cpu: */
 	struct load_weight load; // NOTE: woong, cpu load is number of tasks running(task_running + TASK_UNINTERRUPTIBLE) // cpu load average to be used for load balancing
@@ -485,7 +503,7 @@ struct rq {
 	unsigned long next_balance;
 	struct mm_struct *prev_mm;
 
-	u64 clock;
+	u64 clock; //NOTE soo rq 의 clock. update_rq_clock 로 되면 cpu_clock 과 동기화됨.
 	u64 clock_task;
 
 	atomic_t nr_iowait;
@@ -1064,6 +1082,7 @@ struct sched_class {
 
 extern const struct sched_class stop_sched_class;
 extern const struct sched_class rt_sched_class;
+extern const struct sched_class wrr_sched_class; //NOTE soo
 extern const struct sched_class fair_sched_class;
 extern const struct sched_class idle_sched_class;
 
