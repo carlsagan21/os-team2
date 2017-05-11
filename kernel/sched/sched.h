@@ -593,10 +593,10 @@ static inline int cpu_of(struct rq *rq)
 
 DECLARE_PER_CPU(struct rq, runqueues);
 
-#define cpu_rq(cpu)		(&per_cpu(runqueues, (cpu)))
+#define cpu_rq(cpu)		(&per_cpu(runqueues, (cpu))) //NOTE woong: seems useful
 #define this_rq()		(&__get_cpu_var(runqueues))
-#define task_rq(p)		cpu_rq(task_cpu(p))
-#define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
+#define task_rq(p)		cpu_rq(task_cpu(p)) //NOTE woong: seems useful
+#define cpu_curr(cpu)		(cpu_rq(cpu)->curr) //NOTE woong: seems useful
 #define raw_rq()		(&__raw_get_cpu_var(runqueues))
 
 #ifdef CONFIG_SMP
@@ -1060,6 +1060,7 @@ struct sched_class {
 #endif
 
 	void (*set_curr_task) (struct rq *rq);
+	//NOTE woong: task_tick function is called from the timer tick to update accounting and possibly switch to a different process
 	void (*task_tick) (struct rq *rq, struct task_struct *p, int queued);
 	void (*task_fork) (struct task_struct *p);
 
