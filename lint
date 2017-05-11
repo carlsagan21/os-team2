@@ -1,3 +1,8 @@
 #!/bin/sh
 
-scripts/checkpatch.pl --max-line-length=200 -f arch/arm/kernel/*rot*.c include/linux/rotation.h
+if [ $# -eq 0 ]
+then
+  scripts/checkpatch.pl --max-line-length=200 -f kernel/sched/wrr.c kernel/sched/core.c kernel/sched/sched.h include/uapi/linux/sched.h
+else
+  scripts/checkpatch.pl --max-line-length=200 -f $1
+fi
