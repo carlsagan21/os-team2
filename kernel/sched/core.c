@@ -3899,11 +3899,12 @@ static struct task_struct *find_process_by_pid(pid_t pid)
 
 extern struct cpumask hmp_slow_cpu_mask;
 
+//NOTE soo 실제로 setschedule 이 일어나는 함수.
 /* Actually do priority change: must hold rq lock. */
 static void
 __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 {
-	p->policy = policy;
+	p->policy = policy;//soo 새로은 폴리시
 	p->rt_priority = prio;
 	p->normal_prio = normal_prio(p);
 	/* we are holding p->pi_lock already */
@@ -3914,8 +3915,12 @@ __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 		if (cpumask_equal(&p->cpus_allowed, cpu_all_mask))
 			do_set_cpus_allowed(p, &hmp_slow_cpu_mask);
 #endif
-	} else
+	}
+	//TODO __setscheduler else if (wrr_policy(p->policy))
+	// 	p->sched_class = &wrr_sched_class;
+	else
 		p->sched_class = &fair_sched_class;
+
 	set_load_weight(p);
 }
 
@@ -3944,6 +3949,7 @@ static int __sched_setscheduler(struct task_struct *p, int policy,
 	struct rq *rq;
 	int reset_on_fork;
 
+	if (policy == SCHED_WRR) printk(KERN_DEBUG "[soo] call __sched_setscheduler %d, %d\n", p->policy, p->sched_class);
 
 	/* may grab non-irq protected spin_locks */
 	BUG_ON(in_interrupt());
@@ -3971,9 +3977,9 @@ recheck:
 	    (p->mm && param->sched_priority > MAX_USER_RT_PRIO-1) ||
 	    (!p->mm && param->sched_priority > MAX_RT_PRIO-1))
 		return -EINVAL;
-	if (rt_policy(policy) != (param->sched_priority != 0)) {
+	if (rt_policy(policy) != (param->sched_priority != 0))
 		return -EINVAL;
-	}
+
 
 	/*
 	 * Allow unprivileged RT tasks to decrease priority:
@@ -4058,6 +4064,7 @@ recheck:
 	}
 #endif
 
+	if (policy == SCHED_WRR) printk(KERN_DEBUG "[soo] call __sched_setscheduler2: %d, %d\n", oldpolicy, p->policy);
 	/* recheck policy now with rq lock held */
 	if (unlikely(oldpolicy != -1 && oldpolicy != p->policy)) {
 		policy = oldpolicy = -1;
@@ -4066,10 +4073,12 @@ recheck:
 	}
 	on_rq = p->on_rq;
 	running = task_current(rq, p);
-	if (on_rq)
+	if (on_rq) //NOTE soo 만약 on_rq 가 0이 아니면, 즉 갓 시작한 task 가 아니면 빼준다.
 		dequeue_task(rq, p, 0);
-	if (running)
+	if (running) //NOTE soo 지금 돌고있는 프로세스라면, 현재의 스케줄러의 젤 뒤로 넘겨준다. NORMAL
 		p->sched_class->put_prev_task(rq, p);
+
+	if (policy == SCHED_WRR) printk(KERN_DEBUG "[soo] call __sched_setscheduler3: %d, %d\n", on_rq, running);
 
 	p->sched_reset_on_fork = reset_on_fork;
 
@@ -4077,10 +4086,11 @@ recheck:
 	prev_class = p->sched_class;
 	__setscheduler(rq, p, policy, param->sched_priority);
 
+	if (policy == SCHED_WRR) printk(KERN_DEBUG "[soo] call __sched_setscheduler4: %d, %d, %d, %d\n", on_rq, running, prev_class, p->sched_class);
 	if (running)
-		p->sched_class->set_curr_task(rq);
+		p->sched_class->set_curr_task(rq);//TODO 알기
 	if (on_rq)
-		enqueue_task(rq, p, 0);
+		enqueue_task(rq, p, 0);//NOTE soo 호출되어야 함.
 
 	check_class_changed(rq, p, prev_class, oldprio);
 	task_rq_unlock(rq, p, &flags);
