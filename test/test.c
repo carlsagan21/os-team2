@@ -5,6 +5,7 @@
 #include <sys/types.h>
 #include <sched.h>
 #include <unistd.h>
+#include <uapi/linux/sched.h>
 // #include <stdio.h>
 
 
@@ -38,47 +39,13 @@ int main(){
 	struct sched_param param, new_param;
   printf("start policy = %d \n", sched_getscheduler(0));
 
-  // param.sched_priority = (sched_get_priority_min(SCHED_FIFO) + sched_get_priority_max(SCHED_FIFO)) /2;
-  // printf("max priority = %d, min priority = %d, my priority = %d \n", sched_get_priority_max(SCHED_FIFO), sched_get_priority_min(SCHED_FIFO),
-  //                 param.sched_priority);
-
-  // if (sched_setscheduler(0, 0, &param) != 0) {
-  //   perror("sched_setscheduler0 failed \n");
-  //   // return;
-  // }
-	// printf("start policy = %d \n", sched_getscheduler(0));
-	//
-	// if (sched_setscheduler(0, 1, &param) != 0) {
-	// 	perror("sched_setscheduler1 failed \n");
-	// 	// return;
-	// }
-	// printf("start policy = %d \n", sched_getscheduler(0));
-	//
-	// if (sched_setscheduler(0, 2, &param) != 0) {
-	// 	perror("sched_setscheduler2 failed \n");
-	// 	// return;
-	// }
-	// printf("start policy = %d \n", sched_getscheduler(0));
-	//
-	// if (sched_setscheduler(0, 3, &param) != 0) {
-	// 	perror("sched_setscheduler3 failed \n");
-	// 	// return;
-	// }
-	// printf("start policy = %d \n", sched_getscheduler(0));
-	//
-	// if (sched_setscheduler(0, 5, &param) != 0) {
-	// 	perror("sched_setscheduler5 failed \n");
-	// 	// return;
-	// }
-	// printf("start policy = %d \n", sched_getscheduler(0));
-
-	if (sched_setscheduler(0, 6, &param) != 0) {
+	if (sched_setscheduler(0, SCHED_WRR, &param) != 0) {
 		perror("sched_setscheduler6 failed \n");
 	}
 	printf("start policy = %d \n", sched_getscheduler(0));
 
 	int i;
-	for (i = 0; i < 1e3; i++) {
+	for (i = 0; i < 1e4; i++) {
 		trial_imple(i);
 	}
 
@@ -103,5 +70,5 @@ int main(){
   // printf("I am running at priority %d \n",
   //                 new_param.sched_priority);
 
-  return;
+  return 0;
 }
