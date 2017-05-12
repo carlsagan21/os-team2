@@ -1056,6 +1056,7 @@ struct sched_rt_entity {
 
 struct sched_wrr_entity {
 	struct list_head run_list;
+	// unsigned int weight;
 };
 
 // TODO sched_wrr_entity 정의. weight 를 저장하고 task_struct 를 가리킴.

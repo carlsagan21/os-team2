@@ -404,7 +404,7 @@ struct wrr_rq {
 // 	unsigned long rt_nr_boosted;
 //
 // 	struct rq *rq;
-	struct list_head leaf_wrr_rq_list;
+	// struct list_head leaf_wrr_rq_list;
 // 	struct task_group *tg;
 // #endif
 };
@@ -493,7 +493,8 @@ struct rq {
 
 //NOTE wonog: add wrr_rq related list
 	/* list of leaf wrr_rq on this cpu: */
-	struct list_head leaf_wrr_rq_list;
+	//NOTE soo: leaf 는 GROUP_SCHED 가 정의되어 있을 때에만 필요하다.
+	// struct list_head leaf_wrr_rq_list;
 
 	/*
 	 * This is part of a global counter where only the total sum
