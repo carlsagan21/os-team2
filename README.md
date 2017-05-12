@@ -45,3 +45,6 @@
 
 ## test with checkpatch.pl
 -   ./scripts/checkpatch.pl --max-line-length=200 -f arch/arm/kernel/*rot*.c (\*rot\* 입니다.)
+
+-   pull /proc/sched_debug test/sched_debug
+-   pull /proc/schedstat test/schedstat

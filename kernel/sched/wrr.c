@@ -251,11 +251,12 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 // 	printk(KERN_DEBUG "[soo] task_woken_wrr");
 // }
 
-static void set_cpus_allowed_wrr(struct task_struct *p,
-				const struct cpumask *new_mask)
-{
-	printk(KERN_DEBUG "[soo] set_cpus_allowed_wrr");
-}
+//NOTE rt에서만 쓰고... 별 관련없어보임.
+// static void set_cpus_allowed_wrr(struct task_struct *p,
+// 				const struct cpumask *new_mask)
+// {
+// 	printk(KERN_DEBUG "[soo] set_cpus_allowed_wrr");
+// }
 
 /*rt Assumes rq->lock is held */
 static void rq_online_wrr(struct rq *rq)
@@ -389,7 +390,7 @@ const struct sched_class wrr_sched_class = {
 	//	void (*set_cpus_allowed)(struct task_struct *p,
 	//				 const struct cpumask *newmask);
 	// rt only
-	.set_cpus_allowed       = set_cpus_allowed_wrr,
+	// .set_cpus_allowed       = set_cpus_allowed_wrr,
 
 	//	void (*rq_online)(struct rq *rq);
 	.rq_online              = rq_online_wrr,

@@ -3944,6 +3944,7 @@ static int __sched_setscheduler(struct task_struct *p, int policy,
 	struct rq *rq;
 	int reset_on_fork;
 
+
 	/* may grab non-irq protected spin_locks */
 	BUG_ON(in_interrupt());
 recheck:
@@ -3957,7 +3958,7 @@ recheck:
 
 		if (policy != SCHED_FIFO && policy != SCHED_RR &&
 				policy != SCHED_NORMAL && policy != SCHED_BATCH &&
-				policy != SCHED_IDLE)
+				policy != SCHED_IDLE && policy != SCHED_WRR)
 			return -EINVAL;
 	}
 
@@ -3970,8 +3971,9 @@ recheck:
 	    (p->mm && param->sched_priority > MAX_USER_RT_PRIO-1) ||
 	    (!p->mm && param->sched_priority > MAX_RT_PRIO-1))
 		return -EINVAL;
-	if (rt_policy(policy) != (param->sched_priority != 0))
+	if (rt_policy(policy) != (param->sched_priority != 0)) {
 		return -EINVAL;
+	}
 
 	/*
 	 * Allow unprivileged RT tasks to decrease priority:
