@@ -3975,7 +3975,6 @@ recheck:
 		return -EINVAL;
 	}
 
-
 	/*
 	 * Allow unprivileged RT tasks to decrease priority:
 	 */
