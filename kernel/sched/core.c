@@ -1268,7 +1268,8 @@ out:
 	return dest_cpu;
 }
 
-//NOTE soo 위의 함수는 아주 중요하고 이해하기 어려운 함수중 하나입니다.
+//NOTE soo
+// 위의 함수는 아주 중요하고 이해하기 어려운 함수중 하나입니다.
 // 새로운 프로세스를 실행시키는 fork()나  sleep 상태에 깨어날 때 , 로드 밸런싱을 위해 ,
 // 부모 프로세스가  수행되던 혹은 sleep 전에 수행됐던 cpu에서 계속 실행할지 ,
 // 아니면 다른 cpu로 옮겨 실행 시킬지를 결정하는 함수입니다.
@@ -2076,6 +2077,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	finish_task_switch(this_rq(), prev);
 }
 
+//NOTE soo 스케줄러 값들. Runnable threads의 수, 부팅이후 context_switch total
 /*
  * nr_running and nr_context_switches:
  *
@@ -2785,6 +2787,7 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 	return ns;
 }
 
+//NOTE soo tick 에 중요한 함수
 /*
  * This function gets called by the timer code, with HZ frequency.
  * We call it with interrupts disabled.
