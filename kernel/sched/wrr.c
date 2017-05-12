@@ -3,6 +3,14 @@
 
 #include "sched.h"
 
+void init_wrr_rq(struct wrr_rq *wrr_rq)
+{
+	wrr_rq->wrr_nr_running = 0;
+	wrr_rq->curr = NULL;
+	wrr_rq->next = NULL;
+	wrr_rq->first = NULL;
+}
+
 //soo
 /**************************************************************
  * WRR operations on generic schedulable entities:
@@ -38,6 +46,22 @@ static inline struct wrr_rq *wrr_rq_of_wrr_se(struct sched_wrr_entity *wrr_se)
 // TODO trigger_load_balance()
 // TODO entity 의 load는 fair의 update_entity_load_avg 호출되는 부분에서 업데이트 필요.
 // set_next_entity, put_prev_entity, entity_tick, enqueue_task, dequeue_task
+
+static struct sched_wrr_entity *pick_next_wrr_entity(struct wrr_rq *wrr_rq)
+{
+	// FIXME 지금 돌아가고 있는 task 도 리스트에 저장되어 있는가?
+	// 있다면, 1번째 entry 가 돌아가고 있다면 2가 next 이고, 안돌아가고 있다면 1이 next이다.
+	// 없다면, 1번째 entry 가 항상 next 이다.
+	// cfs 의 경우, __pick_first_entity 에서 첫번째 걸 보고, skip 을 체크하고 next 로 second 를 본다.
+	// rt 의 경우, active 를 찾아서, active 다음을 리턴한다.
+	// 우선 다음걸 찾아서 리턴하는 걸로 구현한다.
+	if (wrr_rq->curr == NULL) {
+		return wrr_rq->first;
+	} else {
+		return wrr_rq->next;
+	}
+}
+
 
 //soo class methods
 /*rt
@@ -91,8 +115,22 @@ static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int fla
 static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
 	//soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
-	// trace_printk(KERN_DEBUG "[soo] pick_next_task_wrr");
-	return NULL;
+	struct sched_wrr_entity *wrr_se;
+	struct task_struct *p;
+	struct wrr_rq *wrr_rq;
+
+	wrr_rq = &rq->wrr;
+
+	if (!wrr_rq->wrr_nr_running)
+		return NULL;
+
+	//soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
+	wrr_se = pick_next_wrr_entity(wrr_rq);
+
+	p = wrr_se_task_of(wrr_se);
+	p->wrr_se.exec_start = rq->clock_task;
+
+	return p;
 }
 
 /*fair
@@ -336,7 +374,7 @@ const struct sched_class wrr_sched_class = {
 #ifdef CONFIG_SCHED_DEBUG
 void print_wrr_stats(struct seq_file *m, int cpu)
 {
-	struct wrr_rq *wrr_rq;
+	// struct wrr_rq *wrr_rq;
 
 	rcu_read_lock();
 	// for_each_leaf_wrr_rq(cpu_rq(cpu), wrr_rq)

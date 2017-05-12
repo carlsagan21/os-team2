@@ -378,35 +378,42 @@ struct rt_rq {
 
 //NOTE woong: classes containing related fiels of wrr
 struct wrr_rq {
-// 	struct rt_prio_array active;
-// 	unsigned int rt_nr_running;
-// #if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
-// 	struct {
-// 		int curr; /* highest queued rt task prio */
-// #ifdef CONFIG_SMP
-// 		int next; /* next highest */
-// #endif
-// 	} highest_prio;
-// #endif
-// #ifdef CONFIG_SMP
-// 	unsigned long rt_nr_migratory;
-// 	unsigned long rt_nr_total;
-// 	int overloaded;
-// 	struct plist_head pushable_tasks;
-// #endif
-// 	int rt_throttled;
-// 	u64 rt_time;
-// 	u64 rt_runtime;
-// 	/* Nests inside the rq lock: */
-// 	raw_spinlock_t rt_runtime_lock;
+	unsigned int wrr_nr_running;
+	/*
+	 * 'curr' points to currently running entity on this wrr_rq.
+	 * It is set to NULL otherwise (i.e when none are currently running).
+	 */
+	//soo curr 이 NULL 이 아니면 list 의 맨앞이게 하고싶음.
+	struct sched_wrr_entity *curr, *next, *first;
+//	struct rt_prio_array active;
+//	unsigned int rt_nr_running;
+//#if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
+//	struct {
+//		int curr; /* highest queued rt task prio */
+//#ifdef CONFIG_SMP
+//		int next; /* next highest */
+//#endif
+//	} highest_prio;
+//#endif
+//#ifdef CONFIG_SMP
+//	unsigned long rt_nr_migratory;
+//	unsigned long rt_nr_total;
+//	int overloaded;
+//	struct plist_head pushable_tasks;
+//#endif
+//	int rt_throttled;
+//	u64 rt_time;
+//	u64 rt_runtime;
+//	/* Nests inside the rq lock: */
+//	raw_spinlock_t rt_runtime_lock;
 //
-// #ifdef CONFIG_RT_GROUP_SCHED
-// 	unsigned long rt_nr_boosted;
+//#ifdef CONFIG_RT_GROUP_SCHED
+//	unsigned long rt_nr_boosted;
 //
-// 	struct rq *rq;
-	// struct list_head leaf_wrr_rq_list;
-// 	struct task_group *tg;
-// #endif
+//	struct rq *rq;
+//struct list_head leaf_wrr_rq_list;
+//	struct task_group *tg;
+//#endif
 };
 
 #ifdef CONFIG_SMP
@@ -1084,7 +1091,7 @@ struct sched_class {
 
 #define sched_class_highest (&stop_sched_class)
 #define for_each_class(class) \
-   for (class = sched_class_highest; class; class = class->next)
+	for (class = sched_class_highest; class; class = class->next)
 
 extern const struct sched_class stop_sched_class;
 extern const struct sched_class rt_sched_class;
@@ -1126,6 +1133,7 @@ extern void update_max_interval(void);
 extern int update_runtime(struct notifier_block *nfb, unsigned long action, void *hcpu);
 extern void init_sched_rt_class(void);
 extern void init_sched_fair_class(void);
+extern void init_sched_wrr_class(void);
 
 extern void resched_task(struct task_struct *p);
 extern void resched_cpu(int cpu);
@@ -1156,7 +1164,7 @@ static inline void inc_nr_running(struct rq *rq)
 			smp_wmb();
 			smp_send_reschedule(rq->cpu);
 		}
-       }
+	}
 #endif
 }
 
@@ -1389,6 +1397,7 @@ extern void print_rt_stats(struct seq_file *m, int cpu);
 
 extern void init_cfs_rq(struct cfs_rq *cfs_rq);
 extern void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq);
+extern void init_wrr_rq(struct wrr_rq *wrr_rq);
 
 extern void cfs_bandwidth_usage_inc(void);
 extern void cfs_bandwidth_usage_dec(void);
