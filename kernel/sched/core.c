@@ -123,6 +123,9 @@ void update_rq_clock(struct rq *rq)
 		return;
 
 	delta = sched_clock_cpu(cpu_of(rq)) - rq->clock;
+	//NOTE soo cpu_clock(i) provides a fast (execution time) high resolution
+	// clock with bounded drift between CPUs. The value of cpu_clock(i)
+	// is monotonic for constant i. The timestamp returned is in nanoseconds.
 	rq->clock += delta;
 	update_rq_clock_task(rq, delta);
 }
@@ -287,7 +290,7 @@ const_debug unsigned int sysctl_sched_time_avg = MSEC_PER_SEC;
  * period over which we measure -rt task cpu usage in us.
  * default: 1s
  */
-unsigned int sysctl_sched_rt_period = 1000000;
+unsigned int sysctl_sched_rt_period = 1000000; //NOTE woong: reflect info when implementing wrr_sched_period, if necessary
 
 __read_mostly int scheduler_running;
 
@@ -295,7 +298,7 @@ __read_mostly int scheduler_running;
  * part of the period that we allow rt tasks to run in us.
  * default: 0.95s
  */
-int sysctl_sched_rt_runtime = 950000;
+int sysctl_sched_rt_runtime = 950000;//NOTE woong: reflect info when implementing wrr_sched_runtime, if necessary
 
 
 
@@ -355,6 +358,7 @@ task_rq_unlock(struct rq *rq, struct task_struct *p, unsigned long *flags)
 
 /*
  * this_rq_lock - lock this runqueue and disable interrupts.
+ * NOTE woong : Lock runqueue of currently working CPU(maybe...)
  */
 static struct rq *this_rq_lock(void)
 	__acquires(rq->lock)
@@ -386,6 +390,7 @@ static void hrtick_clear(struct rq *rq)
 		hrtimer_cancel(&rq->hrtick_timer);
 }
 
+//NOTE soo high resolution tick. artik10 에서 안쓰는 듯?
 /*
  * High-resolution timer tick.
  * Runs from hardirq context with interrupts disabled.
@@ -513,6 +518,7 @@ static inline void init_hrtick(void)
  * the target CPU.
  */
 #ifdef CONFIG_SMP
+//NOTE woong: seems useful
 void resched_task(struct task_struct *p)
 {
 	int cpu;
@@ -534,6 +540,7 @@ void resched_task(struct task_struct *p)
 		smp_send_reschedule(cpu);
 }
 
+//NOTE woong: seems useful
 void resched_cpu(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
@@ -661,18 +668,18 @@ static inline bool got_nohz_idle_kick(void)
 #ifdef CONFIG_NO_HZ_FULL
 bool sched_can_stop_tick(void)
 {
-       struct rq *rq;
+	struct rq *rq;
 
-       rq = this_rq();
+	rq = this_rq();
 
-       /* Make sure rq->nr_running update is visible after the IPI */
-       smp_rmb();
+	/* Make sure rq->nr_running update is visible after the IPI */
+	smp_rmb();
 
-       /* More than one running task need preemption */
-       if (rq->nr_running > 1)
-               return false;
+	/* More than one running task need preemption */
+	if (rq->nr_running > 1)
+		return false;
 
-       return true;
+	return true;
 }
 #endif /* CONFIG_NO_HZ_FULL */
 
@@ -766,7 +773,7 @@ static void set_load_weight(struct task_struct *p)
 static void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	update_rq_clock(rq);
-	sched_info_queued(p);
+	sched_info_queued(p); //NOTE soo stats.c 에 로그를 쓰는 일
 	p->sched_class->enqueue_task(rq, p, flags);
 }
 
@@ -779,6 +786,8 @@ static void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 
 void activate_task(struct rq *rq, struct task_struct *p, int flags)
 {
+	//NOTE soo 특정 테스크 상태에서(TASK_UNINTERRUPTIBLE, not PF_FROZEN) 비활성된 테스크를
+	// 문자대로라면 테스크가 로드에 기여할 때에만
 	if (task_contributes_to_load(p))
 		rq->nr_uninterruptible--;
 
@@ -853,6 +862,8 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
 #endif
 }
 
+//NOTE soo 위의 함수는 hotplug cpu의 처리에 사용됩니다. usb 처럼 cpu 소켓을 교체하는 상황을 가정해 보겠습니다.
+// 현재 실행중인 프로세스의 nice를 최대로 상향해서 , stopmachine에 필요한 급한 연산을 처리하기 위해 사용됩니다.
 void sched_set_stop_task(int cpu, struct task_struct *stop)
 {
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
@@ -904,6 +915,9 @@ static inline int normal_prio(struct task_struct *p)
 
 	if (task_has_rt_policy(p))
 		prio = MAX_RT_PRIO-1 - p->rt_priority;
+	else if (task_has_wrr_policy(p))
+		// TODO soo 어떻게 고쳐야 할까? 지금은 fair와 같이 그대로 씀.
+		prio = __normal_prio(p);
 	else
 		prio = __normal_prio(p);
 	return prio;
@@ -935,21 +949,27 @@ static int effective_prio(struct task_struct *p)
  */
 inline int task_curr(const struct task_struct *p)
 {
-	return cpu_curr(task_cpu(p)) == p;
+	return cpu_curr(task_cpu(p)) == p; //NOTE soo rq->curr 와 p 비교
 }
 
 static inline void check_class_changed(struct rq *rq, struct task_struct *p,
 				       const struct sched_class *prev_class,
 				       int oldprio)
 {
-	if (prev_class != p->sched_class) {
+	if (prev_class != p->sched_class) { //NOTE soo sched_class 가 바뀌면
+		//NOTE switched_from 이 클래스에 구현되어 있으면.
+		// rt 의 경우 single core 에서 switched_from 이 정의되어 있지 않다
 		if (prev_class->switched_from)
-			prev_class->switched_from(rq, p);
-		p->sched_class->switched_to(rq, p);
-	} else if (oldprio != p->prio)
+			prev_class->switched_from(rq, p); //NOTE prev 의 switched_from
+		p->sched_class->switched_to(rq, p); //NOTE 바뀐 클래스의 switched_to 가 호출
+	} else if (oldprio != p->prio) //NOTE soo p->prio 가 바뀌면
 		p->sched_class->prio_changed(rq, p, oldprio);
 }
 
+//NOTE soo
+// 위의 함수는 현재 실행중인 프로세스가 preempt되어야 하는지 검사해서 여러 조건이 충족하면, set_tsk_need_resched()를
+// 설정해 schedule()함수를 호출합니다.
+// 현재의 running task 가 new task 에 의해 preempted 될 수 있는지 확인
 void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
 {
 	const struct sched_class *class;
@@ -1036,6 +1056,8 @@ struct migration_arg {
 
 static int migration_cpu_stop(void *data);
 
+//NOTE soo 이 함수는 p가 match_state에 해당하고 (PTRACED), 런큐에서 제거 될때 까지 wait하는 함수이며
+// ptrace 디버깅 관련 부분에서 조금 사용됩니다.
 /*
  * wait_task_inactive - wait for a thread to unschedule.
  *
@@ -1144,6 +1166,9 @@ unsigned long wait_task_inactive(struct task_struct *p, long match_state)
 	return ncsw;
 }
 
+//NOTE soo 위의 함수는  다른 cpu에서 실행중인 process p를 커널 모드로 진입하게 하는 함수입니다.
+// 구현 방법은 다른 cpu로 interprocessor interrupt를 송신해  , 인터럽트를 유발해  커널 모드로 진입케 합니다.
+// 여러곳에서 유용하게 사용될 수 있습니다.
 /***
  * kick_process - kick a running thread to enter/exit the kernel
  * @p: the to-be-kicked thread
@@ -1244,6 +1269,13 @@ out:
 	return dest_cpu;
 }
 
+//NOTE soo
+// 위의 함수는 아주 중요하고 이해하기 어려운 함수중 하나입니다.
+// 새로운 프로세스를 실행시키는 fork()나  sleep 상태에 깨어날 때 , 로드 밸런싱을 위해 ,
+// 부모 프로세스가  수행되던 혹은 sleep 전에 수행됐던 cpu에서 계속 실행할지 ,
+// 아니면 다른 cpu로 옮겨 실행 시킬지를 결정하는 함수입니다.
+// 일종의 passive 한 load balancing이라 할 수 있고 ,
+// active 한 load balancing은 rebalance_domain()함수라 할 수 있습니다.
 /*
  * The caller (fork, wakeup) owns p->pi_lock, ->cpus_allowed is stable.
  */
@@ -1608,6 +1640,7 @@ static void __sched_fork(struct task_struct *p)
 {
 	p->on_rq			= 0;
 
+	//NOTE soo sched_entity init
 	p->se.on_rq			= 0;
 	p->se.exec_start		= 0;
 	p->se.sum_exec_runtime		= 0;
@@ -1635,7 +1668,12 @@ static void __sched_fork(struct task_struct *p)
 	memset(&p->se.statistics, 0, sizeof(p->se.statistics));
 #endif
 
+	//NOTE soo sched_rt_entity init
 	INIT_LIST_HEAD(&p->rt.run_list);
+
+	//soo sched_wrr_entity init
+	INIT_LIST_HEAD(&p->wrr_se.run_list);
+	p->wrr_se.exec_start = 0;
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	INIT_HLIST_HEAD(&p->preempt_notifiers);
@@ -1675,6 +1713,7 @@ void set_numabalancing_state(bool enabled)
 #endif /* CONFIG_SCHED_DEBUG */
 #endif /* CONFIG_NUMA_BALANCING */
 
+// TODO soo 포크 하는 부분. 포크할때 prio 를 어떻게 할건지 정해줌.
 /*
  * fork()/clone()-time setup:
  */
@@ -1701,9 +1740,11 @@ void sched_fork(struct task_struct *p)
 	 */
 	if (unlikely(p->sched_reset_on_fork)) {
 		if (task_has_rt_policy(p)) {
-			p->policy = SCHED_NORMAL;
+			p->policy = SCHED_NORMAL;//TODO soo 기본 스케줄러를 wrr 로 바꾸면 SCHED_WRR 로 해줘야.
 			p->static_prio = NICE_TO_PRIO(0);
 			p->rt_priority = 0;
+		} else if (task_has_wrr_policy(p)) {
+			//TODO fork 에 sched 를 reset 하는 경우.
 		} else if (PRIO_TO_NICE(p->static_prio) < 0)
 			p->static_prio = NICE_TO_PRIO(0);
 
@@ -1718,10 +1759,12 @@ void sched_fork(struct task_struct *p)
 	}
 
 	if (!rt_prio(p->prio))
-		p->sched_class = &fair_sched_class;
-
+		p->sched_class = &fair_sched_class;//TODO soo 지금은 fort 한 것이 wrr 로는 못됨.
+	// else if (task_has_wrr_policy(p))
+	// TODO woong : Need to intialize sched_class to wrr_sched_class if necessary
+	//p -> sched_class = &wrr_sched_class;
 	if (p->sched_class->task_fork)
-		p->sched_class->task_fork(p);
+		p->sched_class->task_fork(p);//TODO soo 공부 및 구현
 
 	/*
 	 * The child is not yet in the pid-hash so no cgroup attach races,
@@ -1731,6 +1774,8 @@ void sched_fork(struct task_struct *p)
 	 * Silence PROVE_RCU.
 	 */
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
+	/*NOTE soo Change a task's cfs_rq and parent entity if it moves across CPUs/groups */
+	// 그룹을 전제로 한 작업을 함. 그룹 없으면 무의미 ㅠㅠ
 	set_task_cpu(p, cpu);
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 
@@ -1752,6 +1797,7 @@ void sched_fork(struct task_struct *p)
 	put_cpu();
 }
 
+//NOTE soo 현재 프로세스의 on_rq가 0이면( 새로 시작하는 프로세스라면.. ) activate_task()를 호출
 /*
  * wake_up_new_task - wake up a newly created task for the first time.
  *
@@ -1959,6 +2005,7 @@ static inline void post_schedule(struct rq *rq)
 
 #endif
 
+//NOTE soo fork 이후 호출되는 함수.
 /**
  * schedule_tail - first thing a freshly forked thread must call.
  * @prev: the thread we just switched away from.
@@ -2039,6 +2086,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	finish_task_switch(this_rq(), prev);
 }
 
+//NOTE soo 스케줄러 값들. Runnable threads의 수, 부팅이후 context_switch total
 /*
  * nr_running and nr_context_switches:
  *
@@ -2086,12 +2134,14 @@ unsigned long nr_iowait(void)
 unsigned long nr_iowait_cpu(int cpu)
 {
 	struct rq *this = cpu_rq(cpu);
+
 	return atomic_read(&this->nr_iowait);
 }
 
 unsigned long this_cpu_load(void)
 {
 	struct rq *this = this_rq();
+
 	return this->cpu_load[0];
 }
 
@@ -2109,7 +2159,7 @@ unsigned long this_cpu_load(void)
  *
  *   nr_active = 0;
  *   for_each_possible_cpu(cpu)
- *   	nr_active += cpu_of(cpu)->nr_running + cpu_of(cpu)->nr_uninterruptible;
+ *    nr_active += cpu_of(cpu)->nr_running + cpu_of(cpu)->nr_uninterruptible;
  *
  *   avenrun[n] = avenrun[0] * exp_n + nr_active * (1 - exp_n)
  *
@@ -2274,6 +2324,7 @@ void calc_load_enter_idle(void)
 	delta = calc_load_fold_active(this_rq);
 	if (delta) {
 		int idx = calc_load_write_idx();
+
 		atomic_long_add(delta, &calc_load_idle[idx]);
 	}
 }
@@ -2745,6 +2796,7 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 	return ns;
 }
 
+//NOTE soo tick 에 중요한 함수
 /*
  * This function gets called by the timer code, with HZ frequency.
  * We call it with interrupts disabled.
@@ -2930,6 +2982,7 @@ pick_next_task(struct rq *rq)
 	BUG(); /* the idle class will always have a runnable task */
 }
 
+//NOTE soo main schedule method
 /*
  * __schedule() is the main scheduler function.
  *
@@ -3450,6 +3503,7 @@ EXPORT_SYMBOL(wait_for_completion_io_timeout);
 int __sched wait_for_completion_interruptible(struct completion *x)
 {
 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_INTERRUPTIBLE);
+
 	if (t == -ERESTARTSYS)
 		return t;
 	return 0;
@@ -3487,6 +3541,7 @@ EXPORT_SYMBOL(wait_for_completion_interruptible_timeout);
 int __sched wait_for_completion_killable(struct completion *x)
 {
 	long t = wait_for_common(x, MAX_SCHEDULE_TIMEOUT, TASK_KILLABLE);
+
 	if (t == -ERESTARTSYS)
 		return t;
 	return 0;
@@ -3607,6 +3662,7 @@ long __sched sleep_on_timeout(wait_queue_head_t *q, long timeout)
 }
 EXPORT_SYMBOL(sleep_on_timeout);
 
+//NOTE soo artik10 해당사항 없음
 #ifdef CONFIG_RT_MUTEXES
 
 /*
@@ -3673,7 +3729,7 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 out_unlock:
 	__task_rq_unlock(rq);
 }
-#endif
+#endif /* CONFIG_RT_MUTEXES */
 void set_user_nice(struct task_struct *p, long nice)
 {
 	int old_prio, delta, on_rq;
@@ -3697,6 +3753,7 @@ void set_user_nice(struct task_struct *p, long nice)
 		p->static_prio = NICE_TO_PRIO(nice);
 		goto out_unlock;
 	}
+	// TODO soo task_has_wrr_policy 도 필요한가?
 	on_rq = p->on_rq;
 	if (on_rq)
 		dequeue_task(rq, p, 0);
@@ -3857,8 +3914,7 @@ __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 		if (cpumask_equal(&p->cpus_allowed, cpu_all_mask))
 			do_set_cpus_allowed(p, &hmp_slow_cpu_mask);
 #endif
-	}
-	else
+	} else
 		p->sched_class = &fair_sched_class;
 	set_load_weight(p);
 }
@@ -4032,6 +4088,7 @@ recheck:
 	return 0;
 }
 
+//NOTE soo thread 의 스케줄링 폴리시나 프라이오리티를 변경
 /**
  * sched_setscheduler - change the scheduling policy and/or RT priority of a thread.
  * @p: the task in question.
@@ -4047,6 +4104,7 @@ int sched_setscheduler(struct task_struct *p, int policy,
 }
 EXPORT_SYMBOL_GPL(sched_setscheduler);
 
+//NOTE soo context 권한을 체크하지 않음.
 /**
  * sched_setscheduler_nocheck - change the scheduling policy and/or RT priority of a thread from kernelspace.
  * @p: the task in question.
@@ -4448,7 +4506,7 @@ EXPORT_SYMBOL(__cond_resched_softirq);
  * Typical broken usage is:
  *
  * while (!event)
- * 	yield();
+ *  yield();
  *
  * where one assumes that yield() will let 'the other' process run that will
  * make event true. If the current task is a SCHED_FIFO task that will never
@@ -4812,6 +4870,7 @@ void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
 	p->nr_cpus_allowed = cpumask_weight(new_mask);
 }
 
+//NOTE soo 로드발랜싱을 위한 Migration 함수들. cpu 간 task 이동.
 /*
  * This is how migration works:
  *
@@ -4969,6 +5028,7 @@ void idle_task_exit(void)
 static void calc_load_migrate(struct rq *rq)
 {
 	long delta = calc_load_fold_active(rq);
+
 	if (delta)
 		atomic_long_add(delta, &calc_load_tasks);
 }
@@ -5713,6 +5773,7 @@ cpu_attach_domain(struct sched_domain *sd, struct root_domain *rd, int cpu)
 	/* Remove the sched domains which do not contribute to scheduling. */
 	for (tmp = sd; tmp; ) {
 		struct sched_domain *parent = tmp->parent;
+
 		if (!parent)
 			break;
 
@@ -6013,7 +6074,7 @@ static void init_sched_groups_power(int cpu, struct sched_domain *sd)
 
 int __weak arch_sd_sibling_asym_packing(void)
 {
-       return 0*SD_ASYM_PACKING;
+	return 0*SD_ASYM_PACKING;
 }
 
 /*
@@ -6029,7 +6090,7 @@ int __weak arch_sd_sibling_asym_packing(void)
 
 #define SD_INIT_FUNC(type)						\
 static noinline struct sched_domain *					\
-sd_init_##type(struct sched_domain_topology_level *tl, int cpu) 	\
+sd_init_##type(struct sched_domain_topology_level *tl, int cpu)	\
 {									\
 	struct sched_domain *sd = *per_cpu_ptr(tl->data.sd, cpu);	\
 	*sd = SD_##type##_INIT;						\
@@ -6040,13 +6101,13 @@ sd_init_##type(struct sched_domain_topology_level *tl, int cpu) 	\
 
 SD_INIT_FUNC(CPU)
 #ifdef CONFIG_SCHED_SMT
- SD_INIT_FUNC(SIBLING)
+SD_INIT_FUNC(SIBLING)
 #endif
 #ifdef CONFIG_SCHED_MC
- SD_INIT_FUNC(MC)
+SD_INIT_FUNC(MC)
 #endif
 #ifdef CONFIG_SCHED_BOOK
- SD_INIT_FUNC(BOOK)
+SD_INIT_FUNC(BOOK)
 #endif
 
 static int default_relax_domain_level = -1;
@@ -6231,7 +6292,7 @@ static const struct cpumask *sd_numa_mask(int cpu)
 static void sched_numa_warn(const char *str)
 {
 	static int done = false;
-	int i,j;
+	int i, j;
 
 	if (done)
 		return;
@@ -6243,7 +6304,7 @@ static void sched_numa_warn(const char *str)
 	for (i = 0; i < nr_node_ids; i++) {
 		printk(KERN_WARNING "  ");
 		for (j = 0; j < nr_node_ids; j++)
-			printk(KERN_CONT "%02d ", node_distance(i,j));
+			printk(KERN_CONT "%02d ", node_distance(i, j));
 		printk(KERN_CONT "\n");
 	}
 	printk(KERN_WARNING "\n");
@@ -6308,7 +6369,8 @@ static void sched_init_numa(void)
 				sched_domains_numa_distance[level++] = next_distance;
 				sched_domains_numa_levels = level;
 				curr_distance = next_distance;
-			} else break;
+			} else
+				break;
 		}
 
 		/*
@@ -6352,6 +6414,7 @@ static void sched_init_numa(void)
 
 		for (j = 0; j < nr_node_ids; j++) {
 			struct cpumask *mask = kzalloc(cpumask_size(), GFP_KERNEL);
+
 			if (!mask)
 				return;
 
@@ -6410,6 +6473,7 @@ static void sched_domains_numa_masks_set(int cpu)
 static void sched_domains_numa_masks_clear(int cpu)
 {
 	int i, j;
+
 	for (i = 0; i < sched_domains_numa_levels; i++) {
 		for (j = 0; j < nr_node_ids; j++)
 			cpumask_clear_cpu(cpu, sched_domains_numa_masks[i][j]);
@@ -6479,7 +6543,7 @@ static int __sdt_alloc(const struct cpumask *cpu_map)
 			struct sched_group *sg;
 			struct sched_group_power *sgp;
 
-		       	sd = kzalloc_node(sizeof(struct sched_domain) + cpumask_size(),
+			sd = kzalloc_node(sizeof(struct sched_domain) + cpumask_size(),
 					GFP_KERNEL, cpu_to_node(j));
 			if (!sd)
 				return -ENOMEM;
@@ -6545,6 +6609,7 @@ struct sched_domain *build_sched_domain(struct sched_domain_topology_level *tl,
 		int cpu)
 {
 	struct sched_domain *sd = tl->init(tl, cpu);
+
 	if (!sd)
 		return child;
 
@@ -6676,6 +6741,7 @@ cpumask_var_t *alloc_sched_domains(unsigned int ndoms)
 void free_sched_domains(cpumask_var_t doms[], unsigned int ndoms)
 {
 	unsigned int i;
+
 	for (i = 0; i < ndoms; i++)
 		free_cpumask_var(doms[i]);
 	kfree(doms);
@@ -6944,6 +7010,7 @@ LIST_HEAD(task_groups);
 
 DECLARE_PER_CPU(cpumask_var_t, load_balance_mask);
 
+//NOTE soo 스케줄러 init. wrr_rq 의 init 이 여기서 호출되어야 한다.
 void __init sched_init(void)
 {
 	int i, j;
@@ -7015,6 +7082,7 @@ void __init sched_init(void)
 		rq->calc_load_update = jiffies + LOAD_FREQ;
 		init_cfs_rq(&rq->cfs);
 		init_rt_rq(&rq->rt, rq);
+		init_wrr_rq(&rq->wrr);
 #ifdef CONFIG_FAIR_GROUP_SCHED
 		root_task_group.shares = ROOT_TASK_GROUP_LOAD;
 		INIT_LIST_HEAD(&rq->leaf_cfs_rq_list);
@@ -7358,6 +7426,7 @@ void sched_offline_group(struct task_group *tg)
 	spin_unlock_irqrestore(&task_group_lock, flags);
 }
 
+//NOTE soo 그룹간 이동
 /* change task's runqueue when it moves between groups.
  *	The caller of this function should have put the task in its new group
  *	by now. This function just updates tsk->se.cfs_rq and tsk->se.parent to

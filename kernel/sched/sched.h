@@ -84,6 +84,21 @@ static inline int task_has_rt_policy(struct task_struct *p)
 	return rt_policy(p->policy);
 }
 
+//NOTE soo 지금 구현상 task_has_rt_policy 가 true 이면 rt, false 이면 fair 로
+// 전반적으로 구현되어있다. 이 함수만으로는 wrr 인지 fair 인지 구분할 수 없으므로,
+// wrr_policy 를 추가하여 task_has_rt_policy 가 쓰이는 모든 곳에 추가해야 한다.
+static inline int wrr_policy(int policy)
+{
+	if (policy == SCHED_WRR)
+		return 1;
+	return 0;
+}
+
+static inline int task_has_wrr_policy(struct task_struct *p)
+{
+	return wrr_policy(p->policy);
+}
+
 /*
  * This is the priority-queue data structure of the RT scheduling class:
  */
@@ -108,6 +123,7 @@ extern struct mutex sched_domains_mutex;
 
 struct cfs_rq;
 struct rt_rq;
+struct wrr_rq;
 
 extern struct list_head task_groups;
 
@@ -237,6 +253,7 @@ struct cfs_bandwidth { };
 #endif	/* CONFIG_CGROUP_SCHED */
 
 /* CFS-related fields in a runqueue */
+//NOTE soo CFS rq. rq 안에 내부적으로 사용.
 struct cfs_rq {
 	struct load_weight load;
 	unsigned int nr_running, h_nr_running;
@@ -326,6 +343,7 @@ static inline int rt_bandwidth_enabled(void)
 }
 
 /* Real-Time classes' related field in a runqueue: */
+//NOTE soo rt_rq. rq 안에 내부적으로 사용됨.
 struct rt_rq {
 	struct rt_prio_array active;
 	unsigned int rt_nr_running;
@@ -356,6 +374,47 @@ struct rt_rq {
 	struct list_head leaf_rt_rq_list;
 	struct task_group *tg;
 #endif
+};
+
+//NOTE woong: classes containing related fiels of wrr
+struct wrr_rq {
+	unsigned int wrr_nr_running;
+	/*
+	 * 'curr' points to currently running entity on this wrr_rq.
+	 * It is set to NULL otherwise (i.e when none are currently running).
+	 */
+	//soo curr 이 NULL 이 아니면 list 의 맨앞이게 하고싶음.
+	struct sched_wrr_entity *curr, *next, *first;
+	struct list_head run_list;
+//	struct rt_prio_array active;
+//	unsigned int rt_nr_running;
+//#if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
+//	struct {
+//		int curr; /* highest queued rt task prio */
+//#ifdef CONFIG_SMP
+//		int next; /* next highest */
+//#endif
+//	} highest_prio;
+//#endif
+//#ifdef CONFIG_SMP
+//	unsigned long rt_nr_migratory;
+//	unsigned long rt_nr_total;
+//	int overloaded;
+//	struct plist_head pushable_tasks;
+//#endif
+//	int rt_throttled;
+//	u64 rt_time;
+//	u64 rt_runtime;
+//	/* Nests inside the rq lock: */
+//	raw_spinlock_t rt_runtime_lock;
+//
+//#ifdef CONFIG_RT_GROUP_SCHED
+//	unsigned long rt_nr_boosted;
+//
+//	struct rq *rq;
+//struct list_head leaf_wrr_rq_list;
+//	struct task_group *tg;
+//#endif
 };
 
 #ifdef CONFIG_SMP
@@ -394,6 +453,7 @@ extern struct root_domain def_root_domain;
  * (such as the load balancing or the thread migration code), lock
  * acquire operations must be ordered by ascending &runqueue.
  */
+//NOTE soo runqueue 정의
 struct rq {
 	/* runqueue lock: */
 	raw_spinlock_t lock;
@@ -402,7 +462,7 @@ struct rq {
 	 * nr_running and cpu_load should be in the same cacheline because
 	 * remote CPUs use both these fields when doing load calculation.
 	 */
-	unsigned int nr_running;
+	unsigned int nr_running; // NOTE: woong # of running tasks per cpu
 	#define CPU_LOAD_IDX_MAX 5
 	unsigned long cpu_load[CPU_LOAD_IDX_MAX];
 	unsigned long last_load_update_tick;
@@ -413,15 +473,19 @@ struct rq {
 #ifdef CONFIG_NO_HZ_FULL
 	unsigned long last_sched_tick;
 #endif
-	int skip_clock_update;
+	int skip_clock_update; //NOTE soo clock update 를 스킵하도록 하는 flag. 0보다 크면 스킵.
 
 	/* capture load from *all* tasks on this cpu: */
-	struct load_weight load;
+	struct load_weight load; // NOTE: woong, cpu load is weight of tasks running(task_running + TASK_UNINTERRUPTIBLE)
+	// cpu load average to be used for load balancing
+	//soo 더 많은 정보는 http://egloos.zum.com/nzcv/v/5795995 참조
 	unsigned long nr_load_updates;
 	u64 nr_switches;
 
-	struct cfs_rq cfs;
-	struct rt_rq rt;
+	struct cfs_rq cfs; //NOTE : woong rq of tasks under cfs scheduler
+	struct rt_rq rt; //NOTE : woong rq of tasks under cfs scheduler
+	struct wrr_rq wrr; //NOTE : woong rq of takss under scheduler
+	//NOTE soo task_struct 의 struct sched_wrr_entity wrr_se 과 구분된다.
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	/* list of leaf cfs_rq on this cpu: */
@@ -435,6 +499,11 @@ struct rq {
 	struct list_head leaf_rt_rq_list;
 #endif
 
+//NOTE wonog: add wrr_rq related list
+	/* list of leaf wrr_rq on this cpu: */
+	//NOTE soo: leaf 는 GROUP_SCHED 가 정의되어 있을 때에만 필요하다.
+	// struct list_head leaf_wrr_rq_list;
+
 	/*
 	 * This is part of a global counter where only the total sum
 	 * over all CPUs matters. A task can increase this counter on
@@ -447,7 +516,7 @@ struct rq {
 	unsigned long next_balance;
 	struct mm_struct *prev_mm;
 
-	u64 clock;
+	u64 clock; //NOTE soo rq 의 clock. update_rq_clock 로 되면 cpu_clock 과 동기화됨.
 	u64 clock_task;
 
 	atomic_t nr_iowait;
@@ -468,8 +537,8 @@ struct rq {
 	struct task_struct *migrate_task;
 #endif
 	/* cpu of this runqueue: */
-	int cpu;
-	int online;
+	int cpu; //NOTE : woong need to find out how to use cpu flag, guessing cpu number
+	int online; // NOTE : woong need to find out how to use online flag, guessing whether cpu is live or sleeping
 
 	struct list_head cfs_tasks;
 
@@ -503,7 +572,7 @@ struct rq {
 
 #ifdef CONFIG_SCHEDSTATS
 	/* latency stats */
-	struct sched_info rq_sched_info;
+	struct sched_info rq_sched_info; //NOTE: woong, sched_info defined in include/linux/sched.h
 	unsigned long long rq_cpu_time;
 	/* could above be rq->cfs_rq.exec_clock + rq->rt_rq.rt_runtime ? */
 
@@ -537,10 +606,10 @@ static inline int cpu_of(struct rq *rq)
 
 DECLARE_PER_CPU(struct rq, runqueues);
 
-#define cpu_rq(cpu)		(&per_cpu(runqueues, (cpu)))
+#define cpu_rq(cpu)		(&per_cpu(runqueues, (cpu))) //NOTE woong: seems useful
 #define this_rq()		(&__get_cpu_var(runqueues))
-#define task_rq(p)		cpu_rq(task_cpu(p))
-#define cpu_curr(cpu)		(cpu_rq(cpu)->curr)
+#define task_rq(p)		cpu_rq(task_cpu(p)) //NOTE woong: seems useful
+#define cpu_curr(cpu)		(cpu_rq(cpu)->curr) //NOTE woong: seems useful
 #define raw_rq()		(&__raw_get_cpu_var(runqueues))
 
 #ifdef CONFIG_SMP
@@ -704,6 +773,7 @@ static inline struct task_group *task_group(struct task_struct *p)
 
 #endif /* CONFIG_CGROUP_SCHED */
 
+//NOTE soo sched_fork 과정에서 호출됨. task를 cpu 에 할당하고 rq 에 넣음.
 static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 {
 	set_task_rq(p, cpu);
@@ -1004,6 +1074,7 @@ struct sched_class {
 #endif
 
 	void (*set_curr_task) (struct rq *rq);
+	//NOTE woong: task_tick function is called from the timer tick to update accounting and possibly switch to a different process
 	void (*task_tick) (struct rq *rq, struct task_struct *p, int queued);
 	void (*task_fork) (struct task_struct *p);
 
@@ -1022,10 +1093,11 @@ struct sched_class {
 
 #define sched_class_highest (&stop_sched_class)
 #define for_each_class(class) \
-   for (class = sched_class_highest; class; class = class->next)
+	for (class = sched_class_highest; class; class = class->next)
 
 extern const struct sched_class stop_sched_class;
 extern const struct sched_class rt_sched_class;
+extern const struct sched_class wrr_sched_class; //NOTE soo
 extern const struct sched_class fair_sched_class;
 extern const struct sched_class idle_sched_class;
 
@@ -1063,6 +1135,7 @@ extern void update_max_interval(void);
 extern int update_runtime(struct notifier_block *nfb, unsigned long action, void *hcpu);
 extern void init_sched_rt_class(void);
 extern void init_sched_fair_class(void);
+extern void init_sched_wrr_class(void);
 
 extern void resched_task(struct task_struct *p);
 extern void resched_cpu(int cpu);
@@ -1093,7 +1166,7 @@ static inline void inc_nr_running(struct rq *rq)
 			smp_wmb();
 			smp_send_reschedule(rq->cpu);
 		}
-       }
+	}
 #endif
 }
 
@@ -1326,6 +1399,7 @@ extern void print_rt_stats(struct seq_file *m, int cpu);
 
 extern void init_cfs_rq(struct cfs_rq *cfs_rq);
 extern void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq);
+extern void init_wrr_rq(struct wrr_rq *wrr_rq);
 
 extern void cfs_bandwidth_usage_inc(void);
 extern void cfs_bandwidth_usage_dec(void);
