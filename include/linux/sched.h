@@ -1081,7 +1081,7 @@ struct task_struct {
 	struct llist_node wake_entry;
 	int on_cpu; //NOTE woong : Which CPU, task is processed
 #endif
-	int on_rq; //NOTE woong: which RQ, task is processed
+	int on_rq; //NOTE woong: which RQ, task is processed //NOTE soo sched_fork 에서 0으로 init. cpu 와 다른듯?
 
 	int prio, static_prio, normal_prio;
 	unsigned int rt_priority;

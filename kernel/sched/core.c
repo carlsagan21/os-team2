@@ -1640,6 +1640,7 @@ static void __sched_fork(struct task_struct *p)
 {
 	p->on_rq			= 0;
 
+	//NOTE soo sched_entity init
 	p->se.on_rq			= 0;
 	p->se.exec_start		= 0;
 	p->se.sum_exec_runtime		= 0;
@@ -1667,7 +1668,12 @@ static void __sched_fork(struct task_struct *p)
 	memset(&p->se.statistics, 0, sizeof(p->se.statistics));
 #endif
 
+	//NOTE soo sched_rt_entity init
 	INIT_LIST_HEAD(&p->rt.run_list);
+
+	//soo sched_wrr_entity init
+	INIT_LIST_HEAD(&p->wrr_se.run_list);
+	p->wrr_se.exec_start = 0;
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	INIT_HLIST_HEAD(&p->preempt_notifiers);
@@ -1716,7 +1722,7 @@ void sched_fork(struct task_struct *p)
 	unsigned long flags;
 	int cpu = get_cpu();
 
-	__sched_fork(p);//TODO 공부
+	__sched_fork(p);
 	/*
 	 * We mark the process as running here. This guarantees that
 	 * nobody will actually run it, and a signal or other external
@@ -1734,7 +1740,7 @@ void sched_fork(struct task_struct *p)
 	 */
 	if (unlikely(p->sched_reset_on_fork)) {
 		if (task_has_rt_policy(p)) {
-			p->policy = SCHED_NORMAL;
+			p->policy = SCHED_NORMAL;//TODO soo 기본 스케줄러를 wrr 로 바꾸면 SCHED_WRR 로 해줘야.
 			p->static_prio = NICE_TO_PRIO(0);
 			p->rt_priority = 0;
 		} else if (task_has_wrr_policy(p)) {
@@ -1753,12 +1759,12 @@ void sched_fork(struct task_struct *p)
 	}
 
 	if (!rt_prio(p->prio))
-		p->sched_class = &fair_sched_class;
+		p->sched_class = &fair_sched_class;//TODO soo 지금은 fort 한 것이 wrr 로는 못됨.
 	// else if (task_has_wrr_policy(p))
 	// TODO woong : Need to intialize sched_class to wrr_sched_class if necessary
 	//p -> sched_class = &wrr_sched_class;
 	if (p->sched_class->task_fork)
-		p->sched_class->task_fork(p);
+		p->sched_class->task_fork(p);//TODO soo 공부 및 구현
 
 	/*
 	 * The child is not yet in the pid-hash so no cgroup attach races,
@@ -1768,7 +1774,9 @@ void sched_fork(struct task_struct *p)
 	 * Silence PROVE_RCU.
 	 */
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
-	set_task_cpu(p, cpu);//TODO 공부
+	/*NOTE soo Change a task's cfs_rq and parent entity if it moves across CPUs/groups */
+	// 그룹을 전제로 한 작업을 함. 그룹 없으면 무의미 ㅠㅠ
+	set_task_cpu(p, cpu);
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
@@ -1789,6 +1797,7 @@ void sched_fork(struct task_struct *p)
 	put_cpu();
 }
 
+//NOTE soo 현재 프로세스의 on_rq가 0이면( 새로 시작하는 프로세스라면.. ) activate_task()를 호출
 /*
  * wake_up_new_task - wake up a newly created task for the first time.
  *
@@ -1996,6 +2005,7 @@ static inline void post_schedule(struct rq *rq)
 
 #endif
 
+//NOTE soo fork 이후 호출되는 함수.
 /**
  * schedule_tail - first thing a freshly forked thread must call.
  * @prev: the thread we just switched away from.

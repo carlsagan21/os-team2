@@ -385,6 +385,7 @@ struct wrr_rq {
 	 */
 	//soo curr 이 NULL 이 아니면 list 의 맨앞이게 하고싶음.
 	struct sched_wrr_entity *curr, *next, *first;
+	struct list_head run_list;
 //	struct rt_prio_array active;
 //	unsigned int rt_nr_running;
 //#if defined CONFIG_SMP || defined CONFIG_RT_GROUP_SCHED
@@ -462,7 +463,7 @@ struct rq {
 	 * remote CPUs use both these fields when doing load calculation.
 	 */
 	unsigned int nr_running; // NOTE: woong # of running tasks per cpu
-		#define CPU_LOAD_IDX_MAX 5
+	#define CPU_LOAD_IDX_MAX 5
 	unsigned long cpu_load[CPU_LOAD_IDX_MAX];
 	unsigned long last_load_update_tick;
 #ifdef CONFIG_NO_HZ_COMMON
@@ -772,6 +773,7 @@ static inline struct task_group *task_group(struct task_struct *p)
 
 #endif /* CONFIG_CGROUP_SCHED */
 
+//NOTE soo sched_fork 과정에서 호출됨. task를 cpu 에 할당하고 rq 에 넣음.
 static inline void __set_task_cpu(struct task_struct *p, unsigned int cpu)
 {
 	set_task_rq(p, cpu);
