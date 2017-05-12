@@ -9,6 +9,7 @@ void init_wrr_rq(struct wrr_rq *wrr_rq)
 	wrr_rq->curr = NULL;
 	wrr_rq->next = NULL;
 	wrr_rq->first = NULL;
+	INIT_LIST_HEAD(&wrr_rq->run_list);
 }
 
 //soo
@@ -47,6 +48,16 @@ static inline struct wrr_rq *wrr_rq_of_wrr_se(struct sched_wrr_entity *wrr_se)
 // TODO entity 의 load는 fair의 update_entity_load_avg 호출되는 부분에서 업데이트 필요.
 // set_next_entity, put_prev_entity, entity_tick, enqueue_task, dequeue_task
 
+// list 에 더하고
+// wrr_rq 의 wrr_nr_running 을 ++
+static void
+enqueue_wrr_entity(struct wrr_rq *wrr_rq, struct sched_wrr_entity *wrr_se, int flags)
+{
+	list_add_tail(&wrr_se->run_list, &wrr_rq->run_list);
+
+	wrr_rq->wrr_nr_running++;
+}
+
 static struct sched_wrr_entity *pick_next_wrr_entity(struct wrr_rq *wrr_rq)
 {
 	// FIXME 지금 돌아가고 있는 task 도 리스트에 저장되어 있는가?
@@ -56,12 +67,19 @@ static struct sched_wrr_entity *pick_next_wrr_entity(struct wrr_rq *wrr_rq)
 	// rt 의 경우, active 를 찾아서, active 다음을 리턴한다.
 	// 우선 다음걸 찾아서 리턴하는 걸로 구현한다.
 	if (wrr_rq->curr == NULL) {
-		return wrr_rq->first;
+		return wrr_rq->first; //TODO run_list 로 구현하기.
 	} else {
 		return wrr_rq->next;
 	}
 }
 
+static void requeue_task_wrr(struct rq *rq, struct task_struct *p, int head)
+{
+	struct sched_wrr_entity *wrr_se = &p->wrr_se;
+	struct wrr_rq *wrr_rq = &rq->wrr;
+
+	list_move_tail(&wrr_se->run_list, &wrr_rq->run_list);
+}
 
 //soo class methods
 /*rt
@@ -75,6 +93,14 @@ static struct sched_wrr_entity *pick_next_wrr_entity(struct wrr_rq *wrr_rq)
 static void
 enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
+	struct sched_wrr_entity *wrr_se = &p->wrr_se;
+
+	//TODO flag 처리
+
+	enqueue_wrr_entity(&rq->wrr, wrr_se, 0);
+
+	inc_nr_running(rq);
+
 	printk(KERN_DEBUG "[soo] enqueue_task_wrr");
 }
 
@@ -85,6 +111,18 @@ enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
  */
 static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
+	/*
+	 * Update run-time statistics of the 'current'.
+	 */
+	// update_curr(wrr_rq);
+	struct sched_wrr_entity *wrr_se = &p->wrr_se;
+
+	list_del_init(&wrr_se->run_list);
+
+	rq->wrr.wrr_nr_running--;
+
+	dec_nr_running(rq);
+
 	printk(KERN_DEBUG "[soo] dequeue_task_wrr");
 }
 
@@ -95,14 +133,16 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
  */
 static void yield_task_wrr(struct rq *rq)
 {
+	requeue_task_wrr(rq, rq->curr, 0);
 	printk(KERN_DEBUG "[soo] yield_task_wrr");
 }
 
-static bool yield_to_task_wrr(struct rq *rq, struct task_struct *p, bool preempt)
-{
-	printk(KERN_DEBUG "[soo] yield_to_task_wrr");
-	return false;
-}
+//soo yield_to_task_wrr 은 필요가 없다. 특정 task 로 yield 하는 경우가 없기 때문.
+// static bool yield_to_task_wrr(struct rq *rq, struct task_struct *p, bool preempt)
+// {
+// 	printk(KERN_DEBUG "[soo] yield_to_task_wrr");
+// 	return false;
+// }
 
 /*rt, fair
  * Preempt the current task with a newly woken task if needed:
@@ -138,6 +178,10 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
  */
 static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 {
+	// requeue_task_wrr(rq, rq->curr, 0);
+	enqueue_task_wrr(rq, prev, 0);// FIXME 리스트에 추가하고, rq 와 wrr_rq 에 nr 을 올려줘야하나? 지금은 올려줌.
+	// 안올려줄경우
+	// list_add_tail(&wrr_se->run_list, &wrr_rq->run_list);
 	printk(KERN_DEBUG "[soo] put_prev_task_wrr");
 }
 
@@ -155,45 +199,57 @@ static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 static int
 select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 {
+	// int cpu = smp_processor_id();
+	int prev_cpu = task_cpu(p);
+	// int new_cpu = cpu;
 	printk(KERN_DEBUG "[soo] select_task_rq_wrr");
-	return 0;
+	return prev_cpu;
 }
 
+//TODO soo migration 상황에서 불리는 것. rt 에 없음. 일단 제외시켜놓는다.
 /*fair
  * Called immediately before a task is migrated to a new cpu; task_cpu(p) and
  * cfs_rq_of(p) references at time of call are still valid and identify the
  * previous cpu.  However, the caller only guarantees p->pi_lock is held; no
  * other assumptions, including the state of rq->lock, should be made.
  */
-static void
-migrate_task_rq_wrr(struct task_struct *p, int next_cpu)
-{
-	printk(KERN_DEBUG "[soo] migrate_task_rq_wrr");
-}
+// static void
+// migrate_task_rq_wrr(struct task_struct *p, int next_cpu)
+// {
+// 	printk(KERN_DEBUG "[soo] migrate_task_rq_wrr");
+// }
 
-static void pre_schedule_wrr(struct rq *rq, struct task_struct *prev)
-{
-	printk(KERN_DEBUG "[soo] pre_schedule_wrr");
-}
+//NOTE soo
+// 현재 pre_schedule에서는 오직 RT schedule class만이 구현되어있는데, 이는 Linux라는 OS의 특성이 real-time task를 선호하기 때문이다. pre_schedule 함수는
+// if(rq->rt.highest_prio.curr > prev->prio) pull_rt_task(rq); 구문을 통해 현재 프로세스의 priority를 비교하여 runqueue 내 Real Time 프로세스 중 가장 높은 priority보다 낮을 경우 RT task를 가져온다.
+// 없으면 호출 안됨. 필요없을듯.
+// static void pre_schedule_wrr(struct rq *rq, struct task_struct *prev)
+// {
+// 	printk(KERN_DEBUG "[soo] pre_schedule_wrr");
+// }
 
-static void post_schedule_wrr(struct rq *rq)
-{
-	printk(KERN_DEBUG "[soo] post_schedule_wrr");
-}
+//NOTE soo
+// pre_schedule 과 마찬가지. rt 전용이고 안불러도 될듯.
+// static void post_schedule_wrr(struct rq *rq)
+// {
+// 	printk(KERN_DEBUG "[soo] post_schedule_wrr");
+// }
 
-static void task_waking_wrr(struct task_struct *p)
-{
-	printk(KERN_DEBUG "[soo] task_waking_wrr");
-}
+//NOTE fair 전용. min_vruntime 을 업데이트 해주는거 같음.필요없겠지?
+// static void task_waking_wrr(struct task_struct *p)
+// {
+// 	printk(KERN_DEBUG "[soo] task_waking_wrr");
+// }
 
+//NOTE task_woken rt 에서 push_rt_tasks 를 함.
 /*rt
  * If we are not running and we are not going to reschedule soon, we should
  * try to push tasks away now
  */
-static void task_woken_wrr(struct rq *rq, struct task_struct *p)
-{
-	printk(KERN_DEBUG "[soo] task_woken_wrr");
-}
+// static void task_woken_wrr(struct rq *rq, struct task_struct *p)
+// {
+// 	printk(KERN_DEBUG "[soo] task_woken_wrr");
+// }
 
 static void set_cpus_allowed_wrr(struct task_struct *p,
 				const struct cpumask *new_mask)
@@ -301,7 +357,7 @@ const struct sched_class wrr_sched_class = {
 	.yield_task		= yield_task_wrr,
 	//	bool (*yield_to_task) (struct rq *rq, struct task_struct *p, bool preempt);
 	// yield_to_task가 fair 에는 있고 rt 에는 없음.
-	.yield_to_task		= yield_to_task_wrr,
+	// .yield_to_task		= yield_to_task_wrr,
 
 	//	void (*check_preempt_curr) (struct rq *rq, struct task_struct *p, int flags);
 	.check_preempt_curr	= check_preempt_curr_wrr,
@@ -316,19 +372,19 @@ const struct sched_class wrr_sched_class = {
 	.select_task_rq		= select_task_rq_wrr,
 	//	void (*migrate_task_rq)(struct task_struct *p, int next_cpu);
 	// fair only
-	.migrate_task_rq = migrate_task_rq_wrr,
+	// .migrate_task_rq = migrate_task_rq_wrr,
 
 	//	void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
 	// rt only
-	.pre_schedule		= pre_schedule_wrr,
+	// .pre_schedule		= pre_schedule_wrr,
 	//	void (*post_schedule) (struct rq *this_rq);
-	.post_schedule		= post_schedule_wrr,
+	// .post_schedule		= post_schedule_wrr,
 	//	void (*task_waking) (struct task_struct *task);
 	// fair only
-	.task_waking = task_waking_wrr,
+	// .task_waking = task_waking_wrr,
 	//	void (*task_woken) (struct rq *this_rq, struct task_struct *task);
 	// rt only
-	.task_woken		= task_woken_wrr,
+	// .task_woken		= task_woken_wrr,
 
 	//	void (*set_cpus_allowed)(struct task_struct *p,
 	//				 const struct cpumask *newmask);
