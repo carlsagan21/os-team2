@@ -390,6 +390,7 @@ static void hrtick_clear(struct rq *rq)
 		hrtimer_cancel(&rq->hrtick_timer);
 }
 
+//NOTE soo high resolution tick. artik10 에서 안쓰는 듯?
 /*
  * High-resolution timer tick.
  * Runs from hardirq context with interrupts disabled.
@@ -1706,6 +1707,7 @@ void set_numabalancing_state(bool enabled)
 #endif /* CONFIG_SCHED_DEBUG */
 #endif /* CONFIG_NUMA_BALANCING */
 
+// TODO soo 포크 하는 부분. 포크할때 prio 를 어떻게 할건지 정해줌.
 /*
  * fork()/clone()-time setup:
  */
@@ -1714,7 +1716,7 @@ void sched_fork(struct task_struct *p)
 	unsigned long flags;
 	int cpu = get_cpu();
 
-	__sched_fork(p);
+	__sched_fork(p);//TODO 공부
 	/*
 	 * We mark the process as running here. This guarantees that
 	 * nobody will actually run it, and a signal or other external
@@ -1736,11 +1738,7 @@ void sched_fork(struct task_struct *p)
 			p->static_prio = NICE_TO_PRIO(0);
 			p->rt_priority = 0;
 		} else if (task_has_wrr_policy(p)) {
-			// TODO soo 포크 하는 부분. 포크할때 prio 를 어떻게 할건지 정해줌.
-			// 부모걸 복사해오는 걸 구현해야함.
-			// p->policy = SCHED_NORMAL;
-			// p->static_prio = NICE_TO_PRIO(0);
-			// p->rt_priority = 0;
+			//TODO fork 에 sched 를 reset 하는 경우.
 		} else if (PRIO_TO_NICE(p->static_prio) < 0)
 			p->static_prio = NICE_TO_PRIO(0);
 
@@ -1756,6 +1754,7 @@ void sched_fork(struct task_struct *p)
 
 	if (!rt_prio(p->prio))
 		p->sched_class = &fair_sched_class;
+	// else if (task_has_wrr_policy(p))
 	// TODO woong : Need to intialize sched_class to wrr_sched_class if necessary
 	//p -> sched_class = &wrr_sched_class;
 	if (p->sched_class->task_fork)
@@ -1769,7 +1768,7 @@ void sched_fork(struct task_struct *p)
 	 * Silence PROVE_RCU.
 	 */
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
-	set_task_cpu(p, cpu);
+	set_task_cpu(p, cpu);//TODO 공부
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
 
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
@@ -2973,6 +2972,7 @@ pick_next_task(struct rq *rq)
 	BUG(); /* the idle class will always have a runnable task */
 }
 
+//NOTE soo main schedule method
 /*
  * __schedule() is the main scheduler function.
  *
@@ -3652,6 +3652,7 @@ long __sched sleep_on_timeout(wait_queue_head_t *q, long timeout)
 }
 EXPORT_SYMBOL(sleep_on_timeout);
 
+//NOTE soo artik10 해당사항 없음
 #ifdef CONFIG_RT_MUTEXES
 
 /*
@@ -3718,7 +3719,7 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 out_unlock:
 	__task_rq_unlock(rq);
 }
-#endif
+#endif /* CONFIG_RT_MUTEXES */
 void set_user_nice(struct task_struct *p, long nice)
 {
 	int old_prio, delta, on_rq;
@@ -3742,7 +3743,7 @@ void set_user_nice(struct task_struct *p, long nice)
 		p->static_prio = NICE_TO_PRIO(nice);
 		goto out_unlock;
 	}
-	// TODO task_has_wrr_policy 도 필요한가?
+	// TODO soo task_has_wrr_policy 도 필요한가?
 	on_rq = p->on_rq;
 	if (on_rq)
 		dequeue_task(rq, p, 0);
@@ -4077,6 +4078,7 @@ recheck:
 	return 0;
 }
 
+//NOTE soo thread 의 스케줄링 폴리시나 프라이오리티를 변경
 /**
  * sched_setscheduler - change the scheduling policy and/or RT priority of a thread.
  * @p: the task in question.
@@ -4092,6 +4094,7 @@ int sched_setscheduler(struct task_struct *p, int policy,
 }
 EXPORT_SYMBOL_GPL(sched_setscheduler);
 
+//NOTE soo context 권한을 체크하지 않음.
 /**
  * sched_setscheduler_nocheck - change the scheduling policy and/or RT priority of a thread from kernelspace.
  * @p: the task in question.
@@ -4857,6 +4860,7 @@ void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
 	p->nr_cpus_allowed = cpumask_weight(new_mask);
 }
 
+//NOTE soo 로드발랜싱을 위한 Migration 함수들. cpu 간 task 이동.
 /*
  * This is how migration works:
  *
@@ -6996,6 +7000,7 @@ LIST_HEAD(task_groups);
 
 DECLARE_PER_CPU(cpumask_var_t, load_balance_mask);
 
+//NOTE soo 스케줄러 init. wrr_rq 의 init 이 여기서 호출되어야 한다.
 void __init sched_init(void)
 {
 	int i, j;
@@ -7067,6 +7072,7 @@ void __init sched_init(void)
 		rq->calc_load_update = jiffies + LOAD_FREQ;
 		init_cfs_rq(&rq->cfs);
 		init_rt_rq(&rq->rt, rq);
+		init_wrr_rq(&rq->wrr);
 #ifdef CONFIG_FAIR_GROUP_SCHED
 		root_task_group.shares = ROOT_TASK_GROUP_LOAD;
 		INIT_LIST_HEAD(&rq->leaf_cfs_rq_list);
@@ -7410,6 +7416,7 @@ void sched_offline_group(struct task_group *tg)
 	spin_unlock_irqrestore(&task_group_lock, flags);
 }
 
+//NOTE soo 그룹간 이동
 /* change task's runqueue when it moves between groups.
  *	The caller of this function should have put the task in its new group
  *	by now. This function just updates tsk->se.cfs_rq and tsk->se.parent to
