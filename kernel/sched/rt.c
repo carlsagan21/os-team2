@@ -1399,6 +1399,8 @@ static struct task_struct *_pick_next_task_rt(struct rq *rq)
 	} while (rt_rq);
 
 	p = rt_task_of(rt_se);
+	//NOTE rt 인데도 se 을 건드리는 부분.
+	//exec_start 관련 부분에서만 사용됨. wrr 에서도?
 	p->se.exec_start = rq->clock_task;
 
 	return p;
@@ -2010,7 +2012,7 @@ static void watchdog(struct rq *rq, struct task_struct *p)
 
 		next = DIV_ROUND_UP(min(soft, hard), USEC_PER_SEC/HZ);
 		if (p->rt.timeout > next)
-			p->cputime_expires.sched_exp = p->se.sum_exec_runtime;
+			p->cputime_expires.sched_exp = p->se.sum_exec_runtime;//NOTE rt 인데도 se 을 건드리는 부분.
 	}
 }
 
@@ -2051,6 +2053,7 @@ static void set_curr_task_rt(struct rq *rq)
 {
 	struct task_struct *p = rq->curr;
 
+	//NOTE rt 인데도 se 을 건드리는 부분.
 	p->se.exec_start = rq->clock_task;
 
 	/* The running task is never eligible for pushing */

@@ -102,3 +102,4 @@ zImage
 # soo
 test/sched_debug
 test/schedstat
+test/test
