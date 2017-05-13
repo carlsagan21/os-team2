@@ -3052,8 +3052,9 @@ need_resched:
 		if (unlikely(signal_pending_state(prev->state, prev))) {
 			prev->state = TASK_RUNNING;
 		} else {
+			//NOTE soo nr_uninterruptible++ 하고 dequeue(nr_rq, nr_rt_rq 둘다 빠짐)
 			deactivate_task(rq, prev, DEQUEUE_SLEEP);
-			prev->on_rq = 0;
+			prev->on_rq = 0;//NOTE soo rq 에 없다
 
 			/*
 			 * If a worker went to sleep, notify and ask workqueue
@@ -3076,12 +3077,12 @@ need_resched:
 	if (unlikely(!rq->nr_running))
 		idle_balance(cpu, rq);
 
-	put_prev_task(rq, prev);
-	next = pick_next_task(rq);
+	put_prev_task(rq, prev);//NOTE 이미 빠져서 없는 테스크임. 젤 뒤에 넣어줌.
+	next = pick_next_task(rq);//NOTE 다음 task 선택
 	clear_tsk_need_resched(prev);
 	rq->skip_clock_update = 0;
 
-	if (likely(prev != next)) {
+	if (likely(prev != next)) {//NOTE 같을수도 있구나. 빈 리스트였으면 가능할듯.
 		rq->nr_switches++;
 		rq->curr = next;
 		++*switch_count;
@@ -3093,6 +3094,7 @@ need_resched:
 		 * this task called schedule() in the past. prev == current
 		 * is still correct, but it can be moved to another cpu/rq.
 		 */
+		//NOTE soo 컨텍스트 스위칭이 일어나면 stack 이복구된다. prev == current 는 동일. rq->curr 가 아니라 sched 의 current. 다만 다른 cpu 로 옮겨 감.
 		cpu = smp_processor_id();
 		rq = cpu_rq(cpu);
 	} else
@@ -3102,7 +3104,7 @@ need_resched:
 	post_schedule(rq);
 
 	sched_preempt_enable_no_resched();
-	if (need_resched())
+	if (need_resched())//NOTE 혹시 아직 스케줄링 필요하면 다시 돌아가서 시킨다.
 		goto need_resched;
 }
 
@@ -3916,8 +3918,9 @@ __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 			do_set_cpus_allowed(p, &hmp_slow_cpu_mask);
 #endif
 	}
-	//TODO __setscheduler else if (wrr_policy(p->policy))
-	// 	p->sched_class = &wrr_sched_class;
+	//soo __setscheduler
+	else if (wrr_policy(p->policy))
+		p->sched_class = &wrr_sched_class;
 	else
 		p->sched_class = &fair_sched_class;
 

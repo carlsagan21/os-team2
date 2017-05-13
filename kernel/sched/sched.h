@@ -1315,6 +1315,7 @@ static inline void double_unlock_balance(struct rq *this_rq, struct rq *busiest)
 	lock_set_subclass(&this_rq->lock.dep_map, 0, _RET_IP_);
 }
 
+//NOTE soo 두 rq 를 동시에 락을 잡는 매크로.
 /*
  * double_rq_lock - safely lock two runqueues
  *

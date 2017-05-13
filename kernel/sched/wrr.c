@@ -93,15 +93,15 @@ static void requeue_task_wrr(struct rq *rq, struct task_struct *p, int head)
 static void
 enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
-	struct sched_wrr_entity *wrr_se = &p->wrr_se;
+	// struct sched_wrr_entity *wrr_se = &p->wrr_se;
+	//
+	// //TODO flag 처리
+	//
+	// enqueue_wrr_entity(&rq->wrr, wrr_se, 0);
+	//
+	// inc_nr_running(rq);
 
-	//TODO flag 처리
-
-	enqueue_wrr_entity(&rq->wrr, wrr_se, 0);
-
-	inc_nr_running(rq);
-
-	printk(KERN_DEBUG "[soo] enqueue_task_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func enqueue_task_wrr");
 }
 
 /*fair
@@ -115,15 +115,15 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	 * Update run-time statistics of the 'current'.
 	 */
 	// update_curr(wrr_rq);
-	struct sched_wrr_entity *wrr_se = &p->wrr_se;
+	// struct sched_wrr_entity *wrr_se = &p->wrr_se;
+	//
+	// list_del_init(&wrr_se->run_list);
+	//
+	// rq->wrr.wrr_nr_running--;
+	//
+	// dec_nr_running(rq);
 
-	list_del_init(&wrr_se->run_list);
-
-	rq->wrr.wrr_nr_running--;
-
-	dec_nr_running(rq);
-
-	printk(KERN_DEBUG "[soo] dequeue_task_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func dequeue_task_wrr");
 }
 
 /*fair
@@ -133,14 +133,14 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
  */
 static void yield_task_wrr(struct rq *rq)
 {
-	requeue_task_wrr(rq, rq->curr, 0);
-	printk(KERN_DEBUG "[soo] yield_task_wrr");
+	// requeue_task_wrr(rq, rq->curr, 0);
+	printk(KERN_DEBUG "[soo] wrr_func yield_task_wrr");
 }
 
 //soo yield_to_task_wrr 은 필요가 없다. 특정 task 로 yield 하는 경우가 없기 때문.
 // static bool yield_to_task_wrr(struct rq *rq, struct task_struct *p, bool preempt)
 // {
-// 	printk(KERN_DEBUG "[soo] yield_to_task_wrr");
+// 	printk(KERN_DEBUG "[soo] wrr_func yield_to_task_wrr");
 // 	return false;
 // }
 
@@ -149,26 +149,26 @@ static void yield_task_wrr(struct rq *rq)
  */
 static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
-	printk(KERN_DEBUG "[soo] check_preempt_curr_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func check_preempt_curr_wrr");
 }
 
 static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
 	//soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
-	struct sched_wrr_entity *wrr_se;
-	struct task_struct *p;
-	struct wrr_rq *wrr_rq;
-
-	wrr_rq = &rq->wrr;
-
-	if (!wrr_rq->wrr_nr_running)
-		return NULL;
-
-	//soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
-	wrr_se = pick_next_wrr_entity(wrr_rq);
-
-	p = wrr_se_task_of(wrr_se);
-	p->wrr_se.exec_start = rq->clock_task;
+	// struct sched_wrr_entity *wrr_se;
+	struct task_struct *p = NULL;
+	// struct wrr_rq *wrr_rq;
+	//
+	// wrr_rq = &rq->wrr;
+	//
+	// if (!wrr_rq->wrr_nr_running)
+	// 	return NULL;
+	//
+	// //soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
+	// wrr_se = pick_next_wrr_entity(wrr_rq);
+	//
+	// p = wrr_se_task_of(wrr_se);
+	// p->wrr_se.exec_start = rq->clock_task;
 
 	return p;
 }
@@ -179,10 +179,10 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
 static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 {
 	// requeue_task_wrr(rq, rq->curr, 0);
-	enqueue_task_wrr(rq, prev, 0);// FIXME 리스트에 추가하고, rq 와 wrr_rq 에 nr 을 올려줘야하나? 지금은 올려줌.
+	// enqueue_task_wrr(rq, prev, 0);// FIXME 리스트에 추가하고, rq 와 wrr_rq 에 nr 을 올려줘야하나? 지금은 올려줌.
 	// 안올려줄경우
 	// list_add_tail(&wrr_se->run_list, &wrr_rq->run_list);
-	printk(KERN_DEBUG "[soo] put_prev_task_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func put_prev_task_wrr");
 }
 
 /*fair
@@ -202,7 +202,7 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 	// int cpu = smp_processor_id();
 	int prev_cpu = task_cpu(p);
 	// int new_cpu = cpu;
-	printk(KERN_DEBUG "[soo] select_task_rq_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func select_task_rq_wrr");
 	return prev_cpu;
 }
 
@@ -216,7 +216,7 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 // static void
 // migrate_task_rq_wrr(struct task_struct *p, int next_cpu)
 // {
-// 	printk(KERN_DEBUG "[soo] migrate_task_rq_wrr");
+// 	printk(KERN_DEBUG "[soo] wrr_func migrate_task_rq_wrr");
 // }
 
 //NOTE soo
@@ -225,20 +225,20 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 // 없으면 호출 안됨. 필요없을듯.
 // static void pre_schedule_wrr(struct rq *rq, struct task_struct *prev)
 // {
-// 	printk(KERN_DEBUG "[soo] pre_schedule_wrr");
+// 	printk(KERN_DEBUG "[soo] wrr_func pre_schedule_wrr");
 // }
 
 //NOTE soo
 // pre_schedule 과 마찬가지. rt 전용이고 안불러도 될듯.
 // static void post_schedule_wrr(struct rq *rq)
 // {
-// 	printk(KERN_DEBUG "[soo] post_schedule_wrr");
+// 	printk(KERN_DEBUG "[soo] wrr_func post_schedule_wrr");
 // }
 
 //NOTE fair 전용. min_vruntime 을 업데이트 해주는거 같음.필요없겠지?
 // static void task_waking_wrr(struct task_struct *p)
 // {
-// 	printk(KERN_DEBUG "[soo] task_waking_wrr");
+// 	printk(KERN_DEBUG "[soo] wrr_func task_waking_wrr");
 // }
 
 //NOTE task_woken rt 에서 push_rt_tasks 를 함.
@@ -248,26 +248,26 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
  */
 // static void task_woken_wrr(struct rq *rq, struct task_struct *p)
 // {
-// 	printk(KERN_DEBUG "[soo] task_woken_wrr");
+// 	printk(KERN_DEBUG "[soo] wrr_func task_woken_wrr");
 // }
 
 //NOTE rt에서만 쓰고... 별 관련없어보임.
 // static void set_cpus_allowed_wrr(struct task_struct *p,
 // 				const struct cpumask *new_mask)
 // {
-// 	printk(KERN_DEBUG "[soo] set_cpus_allowed_wrr");
+// 	printk(KERN_DEBUG "[soo] wrr_func set_cpus_allowed_wrr");
 // }
 
 /*rt Assumes rq->lock is held */
 static void rq_online_wrr(struct rq *rq)
 {
-	printk(KERN_DEBUG "[soo] rq_online_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func rq_online_wrr");
 }
 
 /*rt Assumes rq->lock is held */
 static void rq_offline_wrr(struct rq *rq)
 {
-	printk(KERN_DEBUG "[soo] rq_offline_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func rq_offline_wrr");
 }
 
 /*fair Account for a task changing its policy or group.
@@ -277,7 +277,7 @@ static void rq_offline_wrr(struct rq *rq)
  */
 static void set_curr_task_wrr(struct rq *rq)
 {
-	printk(KERN_DEBUG "[soo] set_curr_task_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func set_curr_task_wrr");
 }
 
 /*fair
@@ -285,7 +285,7 @@ static void set_curr_task_wrr(struct rq *rq)
  */
 static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
 {
-	printk(KERN_DEBUG "[soo] task_tick_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr");
 }
 
 /*fair
@@ -295,7 +295,7 @@ static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
  */
 static void task_fork_wrr(struct task_struct *p)
 {
-	printk(KERN_DEBUG "[soo] task_fork_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func task_fork_wrr");
 }
 
 /*rt
@@ -304,7 +304,7 @@ static void task_fork_wrr(struct task_struct *p)
  */
 static void switched_from_wrr(struct rq *rq, struct task_struct *p)
 {
-	printk(KERN_DEBUG "switched_from_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func switched_from_wrr");
 }
 
 /*rt
@@ -317,7 +317,7 @@ static void switched_from_wrr(struct rq *rq, struct task_struct *p)
  */
 static void switched_to_wrr(struct rq *rq, struct task_struct *p)
 {
-	printk(KERN_DEBUG "switched_to_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func switched_to_wrr");
 }
 
 /*rt
@@ -331,18 +331,18 @@ static void switched_to_wrr(struct rq *rq, struct task_struct *p)
 static void
 prio_changed_wrr(struct rq *rq, struct task_struct *p, int oldprio)
 {
-	printk(KERN_DEBUG "prio_changed_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func prio_changed_wrr");
 }
 
 static unsigned int get_rr_interval_wrr(struct rq *rq, struct task_struct *task)
 {
-	printk(KERN_DEBUG "get_rr_interval_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func get_rr_interval_wrr");
 	return 0;
 }
 
 static void task_move_group_wrr(struct task_struct *p, int on_rq)
 {
-	printk(KERN_DEBUG "task_move_group_wrr");
+	printk(KERN_DEBUG "[soo] wrr_func task_move_group_wrr");
 }
 
 
