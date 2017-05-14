@@ -1,0 +1,131 @@
+[    0.000000] [c0] Linux version 3.10.93-g9dd64d1-dirty (soo@soo-ubuntu) (gcc version 5.4.0 20160609 (Ubuntu/Linaro 5.4.0-6ubuntu1~16.04.4) ) #119 SMP PREEMPT Sun May 14 14:23:22 KST 2017
+[    0.000000] [c0] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 0, 0
+[    0.000000] [soo] wrr_func rq_online_wrr
+[    0.000000] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 0, 0
+[    0.000000] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 0, 0
+[    0.000000] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 0, 0
+[    0.000000] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 0, 0
+[    0.000000] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 0, 0
+[    0.000000] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 0, 0
+[    0.000000] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 0, 0
+[    0.000000] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 0, 0
+[    0.136496] [c0] [soo] wrr_func rq_online_wrr
+[    0.146110] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 136461166
+[    0.146484] [c0] [soo] wrr_func rq_online_wrr
+[    0.156098] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 146453750
+[    0.156474] [c0] [soo] wrr_func rq_online_wrr
+[    0.166187] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 156442833
+[    0.166215] [c0] [soo] wrr_func rq_online_wrr
+[    0.176201] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 166170583
+[    0.176229] [c0] [soo] wrr_func rq_online_wrr
+[    0.186190] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 176185708
+[    0.186217] [c0] [soo] wrr_func rq_online_wrr
+[    0.196219] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 186174916
+[    0.196246] [c0] [soo] wrr_func rq_online_wrr
+[    0.196379] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196204500
+[    0.196658] [c0] [soo] wrr_func rq_offline_wrr
+[    0.196671] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196135083
+[    0.196685] [soo] wrr_func rq_online_wrr
+[    0.196694] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196135083
+[    0.196707] [soo] wrr_func rq_offline_wrr
+[    0.196717] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196452375
+[    0.196728] [soo] wrr_func rq_online_wrr
+[    0.196737] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196452375
+[    0.196750] [soo] wrr_func rq_offline_wrr
+[    0.196759] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196443041
+[    0.196770] [soo] wrr_func rq_online_wrr
+[    0.196779] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196443041
+[    0.196792] [soo] wrr_func rq_offline_wrr
+[    0.196800] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196429125
+[    0.196812] [soo] wrr_func rq_online_wrr
+[    0.196821] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196429125
+[    0.196834] [soo] wrr_func rq_offline_wrr
+[    0.196843] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196155291
+[    0.196855] [soo] wrr_func rq_online_wrr
+[    0.196864] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196155291
+[    0.196877] [soo] wrr_func rq_offline_wrr
+[    0.196886] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196167750
+[    0.196898] [soo] wrr_func rq_online_wrr
+[    0.196907] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196167750
+[    0.196920] [soo] wrr_func rq_offline_wrr
+[    0.196929] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196161833
+[    0.196941] [soo] wrr_func rq_online_wrr
+[    0.196950] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196161833
+[    0.196963] [soo] wrr_func rq_offline_wrr
+[    0.196972] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196364833
+[    0.196984] [soo] wrr_func rq_online_wrr
+[    0.196993] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 1, 196364833
+[   41.557455] [c2] [soo] call __setscheduler: 5404
+[   41.557473] [soo] call __sched_setscheduler4: 1, 1, -1066131436, -1066130980
+[   41.557489] [c2] [soo] wrr_func set_curr_task_wrr
+[   41.557499] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 5404, 41557441879
+[   41.557510] [soo] wrr_func enqueue_task_wrr: 5404, 0
+[   41.557517] [soo] print_wrr_list task: 5404
+[   41.557527] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 5404, 41557507504
+[   41.557534] [soo] wrr_func switched_to_wrr: 5404
+[   41.557575] [soo] wrr_func check_preempt_curr_wrr: 5404
+[   41.557635] [soo] wrr_func dequeue_task_wrr: 5404, 0
+[   41.557648] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 5404, 41557628463
+[   41.557655] [soo] schedule1 prev: 5404
+[   41.557663] [soo] wrr_func put_prev_task_wrr: 5404
+[   41.557673] [soo] schedule2 prev, next: 724, 5404
+[   41.557709] [soo] schedule2 prev, next: 0, 5404
+[   41.559780] [soo] schedule2 prev, next: 516, 5404
+[   43.775200] [soo] call __setscheduler: 5528
+[   43.775217] [soo] call __sched_setscheduler4: 1, 1, -1066131436, -1066130980
+[   43.775233] [c1] [soo] wrr_func set_curr_task_wrr
+[   43.775242] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 5528, 43775187130
+[   43.775252] [soo] wrr_func enqueue_task_wrr: 5528, 0
+[   43.775257] [soo] print_wrr_list task: 5528
+[   43.775266] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 5528, 43775249588
+[   43.775272] [soo] wrr_func switched_to_wrr: 5528
+[   43.775308] [soo] wrr_func check_preempt_curr_wrr: 5528
+[   43.775359] [soo] wrr_func dequeue_task_wrr: 5528, 0
+[   43.775371] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 5528, 43775354130
+[   43.775376] [soo] schedule1 prev: 5528
+[   43.775384] [soo] wrr_func put_prev_task_wrr: 5528
+[   43.775394] [soo] schedule2 prev, next: 725, 5528
+[   43.775427] [soo] schedule2 prev, next: 0, 5528
+[   51.557721] [soo] wrr_func select_task_rq_wrr: 5404
+[   51.557767] [soo] wrr_func enqueue_task_wrr: 5404, 0
+[   51.557784] [soo] print_wrr_list task: 5404
+[   51.557812] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 0, 51557757589
+[   51.557864] [soo] wrr_func pick_next_task_wrr2: 5404
+[   51.557889] [soo] print_wrr_list task: 5404
+[   51.557911] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 0, 51557757589
+[   51.557948] [soo] schedule2 prev, next: 5404, 724
+[   51.558084] [soo] wrr_func check_preempt_curr_wrr: 5404
+[   51.558986] [soo] wrr_func dequeue_task_wrr: 5404, 51557757589
+[   51.559011] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 5404, 51558973214
+[   51.559038] [soo] wrr_func put_prev_task_wrr: 5404
+[   51.559054] [soo] wrr_func set_curr_task_wrr
+[   51.559084] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 5404, 51558973214
+[   51.559100] [soo] wrr_func enqueue_task_wrr: 5404, 51557757589
+[   51.559118] [soo] print_wrr_list task: 5404
+[   51.559132] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 5404, 51559092214
+[   51.559220] [soo] wrr_func dequeue_task_wrr: 5404, 51557757589
+[   51.559237] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 5404, 51559210547
+[   51.559256] [soo] schedule1 prev: 5404
+[   51.559267] [soo] wrr_func put_prev_task_wrr: 5404
+[   51.559399] [soo] schedule2 prev, next: 0, 5404
+[   53.775431] [soo] wrr_func select_task_rq_wrr: 5528
+[   53.775454] [soo] wrr_func enqueue_task_wrr: 5528, 0
+[   53.775460] [soo] print_wrr_list task: 5528
+[   53.775469] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 3642, 53775449798
+[   53.775495] [soo] wrr_func pick_next_task_wrr2: 5528
+[   53.775505] [soo] print_wrr_list task: 5528
+[   53.775512] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 3642, 53775449798
+[   53.775531] [soo] schedule2 prev, next: 5528, 725
+[   53.775618] [soo] wrr_func check_preempt_curr_wrr: 5528
+[   53.776147] [soo] wrr_func dequeue_task_wrr: 5528, 53775449798
+[   53.776156] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 5528, 53776141214
+[   53.776167] [soo] wrr_func put_prev_task_wrr: 5528
+[   53.776173] [soo] wrr_func set_curr_task_wrr
+[   53.776185] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 5528, 53776141214
+[   53.776193] [soo] wrr_func enqueue_task_wrr: 5528, 53775449798
+[   53.776205] [soo] print_wrr_list task: 5528
+[   53.776212] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 5528, 53776189256
+[   53.776246] [soo] schedule2 prev, next: 3642, 5528
+[   53.776257] [soo] wrr_func dequeue_task_wrr: 5528, 53775449798
+[   53.776270] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 5528, 53776250881
+[   53.776277] [soo] schedule1 prev: 5528

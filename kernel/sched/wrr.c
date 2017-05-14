@@ -1,7 +1,10 @@
 #include <linux/kernel.h>
 #include <linux/sched.h>
+#include <linux/jiffies.h>
 
 #include "sched.h"
+
+void print_wrr_list(struct wrr_rq *wrr_rq);
 
 void init_wrr_rq(struct wrr_rq *wrr_rq)
 {
@@ -10,6 +13,9 @@ void init_wrr_rq(struct wrr_rq *wrr_rq)
 	wrr_rq->next = NULL;
 	wrr_rq->first = NULL;
 	INIT_LIST_HEAD(&wrr_rq->run_list);
+#ifdef CONFIG_SCHED_DEBUG
+	print_wrr_list(wrr_rq);
+#endif
 }
 
 //soo
@@ -66,11 +72,13 @@ static struct sched_wrr_entity *pick_next_wrr_entity(struct wrr_rq *wrr_rq)
 	// cfs 의 경우, __pick_first_entity 에서 첫번째 걸 보고, skip 을 체크하고 next 로 second 를 본다.
 	// rt 의 경우, active 를 찾아서, active 다음을 리턴한다.
 	// 우선 다음걸 찾아서 리턴하는 걸로 구현한다.
-	if (wrr_rq->curr == NULL) {
-		return wrr_rq->first; //TODO run_list 로 구현하기.
-	} else {
-		return wrr_rq->next;
-	}
+	struct sched_wrr_entity *wrr_se = list_first_entry(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
+
+	// if (wrr_rq->curr == NULL) {
+	return wrr_se;
+	// } else {
+	// 	return wrr_se;//TODO
+	// }
 }
 
 static void requeue_task_wrr(struct rq *rq, struct task_struct *p, int head)
@@ -93,15 +101,18 @@ static void requeue_task_wrr(struct rq *rq, struct task_struct *p, int head)
 static void
 enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
-	// struct sched_wrr_entity *wrr_se = &p->wrr_se;
+	struct sched_wrr_entity *wrr_se = &p->wrr_se;
 	//
 	// //TODO flag 처리
 	//
-	// enqueue_wrr_entity(&rq->wrr, wrr_se, 0);
-	//
-	// inc_nr_running(rq);
+	enqueue_wrr_entity(&rq->wrr, wrr_se, 0);
 
-	printk(KERN_DEBUG "[soo] wrr_func enqueue_task_wrr");
+	inc_nr_running(rq);
+	p->on_rq = 1;
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func enqueue_task_wrr: %d, %llu", p->pid, p->wrr_se.exec_start);
+	print_wrr_list(&rq->wrr);
+#endif
 }
 
 /*fair
@@ -115,15 +126,18 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	 * Update run-time statistics of the 'current'.
 	 */
 	// update_curr(wrr_rq);
-	// struct sched_wrr_entity *wrr_se = &p->wrr_se;
-	//
-	// list_del_init(&wrr_se->run_list);
-	//
-	// rq->wrr.wrr_nr_running--;
-	//
-	// dec_nr_running(rq);
+	struct sched_wrr_entity *wrr_se = &p->wrr_se;
 
-	printk(KERN_DEBUG "[soo] wrr_func dequeue_task_wrr");
+	list_del_init(&wrr_se->run_list);
+
+	rq->wrr.wrr_nr_running--;
+
+	dec_nr_running(rq);
+	p->on_rq = 0;
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func dequeue_task_wrr: %d, %llu", p->pid, p->wrr_se.exec_start);
+	print_wrr_list(&rq->wrr);
+#endif
 }
 
 /*fair
@@ -134,7 +148,10 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 static void yield_task_wrr(struct rq *rq)
 {
 	// requeue_task_wrr(rq, rq->curr, 0);
+#ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func yield_task_wrr");
+	print_wrr_list(&rq->wrr);
+#endif
 }
 
 //soo yield_to_task_wrr 은 필요가 없다. 특정 task 로 yield 하는 경우가 없기 때문.
@@ -149,27 +166,35 @@ static void yield_task_wrr(struct rq *rq)
  */
 static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
-	printk(KERN_DEBUG "[soo] wrr_func check_preempt_curr_wrr");
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func check_preempt_curr_wrr: %d", p->pid);
+#endif
 }
 
+//TODO enqueue 이후에 불려서 고름. curr 세팅 해야.
 static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
 	//soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
-	// struct sched_wrr_entity *wrr_se;
+	struct sched_wrr_entity *wrr_se;
 	struct task_struct *p = NULL;
-	// struct wrr_rq *wrr_rq;
-	//
-	// wrr_rq = &rq->wrr;
-	//
-	// if (!wrr_rq->wrr_nr_running)
-	// 	return NULL;
-	//
-	// //soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
-	// wrr_se = pick_next_wrr_entity(wrr_rq);
-	//
-	// p = wrr_se_task_of(wrr_se);
-	// p->wrr_se.exec_start = rq->clock_task;
+	struct wrr_rq *wrr_rq;
 
+	wrr_rq = &rq->wrr;
+
+	if (!wrr_rq->wrr_nr_running)
+		return NULL;
+
+	//soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
+	wrr_se = pick_next_wrr_entity(wrr_rq);
+
+	p = wrr_se_task_of(wrr_se);
+	p->wrr_se.time_slice = p->wrr_se.weight * TIME_SLICE;
+	p->wrr_se.exec_start = rq->clock_task;
+
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func pick_next_task_wrr2: %d", wrr_se_task_of(wrr_se)->pid);
+	print_wrr_list(&rq->wrr);
+#endif
 	return p;
 }
 
@@ -178,11 +203,15 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
  */
 static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 {
+	struct wrr_rq *wrr_rq = &rq->wrr;
+	wrr_rq->curr = NULL;
+	list_move_tail(&prev->wrr_se.run_list, &wrr_rq->run_list);
 	// requeue_task_wrr(rq, rq->curr, 0);
 	// enqueue_task_wrr(rq, prev, 0);// FIXME 리스트에 추가하고, rq 와 wrr_rq 에 nr 을 올려줘야하나? 지금은 올려줌.
 	// 안올려줄경우
-	// list_add_tail(&wrr_se->run_list, &wrr_rq->run_list);
-	printk(KERN_DEBUG "[soo] wrr_func put_prev_task_wrr");
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func put_prev_task_wrr: %d", prev->pid);
+#endif
 }
 
 /*fair
@@ -202,7 +231,9 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 	// int cpu = smp_processor_id();
 	int prev_cpu = task_cpu(p);
 	// int new_cpu = cpu;
-	printk(KERN_DEBUG "[soo] wrr_func select_task_rq_wrr");
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func select_task_rq_wrr: %d", p->pid);
+#endif
 	return prev_cpu;
 }
 
@@ -261,15 +292,22 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 /*rt Assumes rq->lock is held */
 static void rq_online_wrr(struct rq *rq)
 {
+#ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func rq_online_wrr");
+	print_wrr_list(&rq->wrr);
+#endif
 }
 
 /*rt Assumes rq->lock is held */
 static void rq_offline_wrr(struct rq *rq)
 {
+#ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func rq_offline_wrr");
+	print_wrr_list(&rq->wrr);
+#endif
 }
 
+//TODO 다른 클래스로부터 넘어올 때 불림.
 /*fair Account for a task changing its policy or group.
  *
  * This routine is mostly called to set cfs_rq->curr field when a task
@@ -277,7 +315,12 @@ static void rq_offline_wrr(struct rq *rq)
  */
 static void set_curr_task_wrr(struct rq *rq)
 {
+	struct wrr_rq *wrr_rq = &rq->wrr;
+	wrr_rq->curr = &rq->curr->wrr_se;
+#ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func set_curr_task_wrr");
+	print_wrr_list(&rq->wrr);
+#endif
 }
 
 /*fair
@@ -285,7 +328,9 @@ static void set_curr_task_wrr(struct rq *rq)
  */
 static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
 {
-	printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr");
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr: %d", curr->pid);
+#endif
 }
 
 /*fair
@@ -295,16 +340,21 @@ static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
  */
 static void task_fork_wrr(struct task_struct *p)
 {
-	printk(KERN_DEBUG "[soo] wrr_func task_fork_wrr");
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func task_fork_wrr: %d", p->pid);
+#endif
 }
 
+//TODO weight 가 없을 떄 weight 를 잡아줌.
 /*rt
  * When switch from the rt queue, we bring ourselves to a position
  * that we might want to pull RT tasks from other runqueues.
  */
 static void switched_from_wrr(struct rq *rq, struct task_struct *p)
 {
-	printk(KERN_DEBUG "[soo] wrr_func switched_from_wrr");
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func switched_from_wrr: %d", p->pid);
+#endif
 }
 
 /*rt
@@ -317,7 +367,11 @@ static void switched_from_wrr(struct rq *rq, struct task_struct *p)
  */
 static void switched_to_wrr(struct rq *rq, struct task_struct *p)
 {
-	printk(KERN_DEBUG "[soo] wrr_func switched_to_wrr");
+	p->wrr_se.weight = DEFAULT_WEIGHT;
+	p->wrr_se.time_slice = DEFAULT_WEIGHT * TIME_SLICE;
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func switched_to_wrr: %d", p->pid);
+#endif
 }
 
 /*rt
@@ -331,19 +385,25 @@ static void switched_to_wrr(struct rq *rq, struct task_struct *p)
 static void
 prio_changed_wrr(struct rq *rq, struct task_struct *p, int oldprio)
 {
-	printk(KERN_DEBUG "[soo] wrr_func prio_changed_wrr");
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func prio_changed_wrr: %d", p->pid);
+#endif
 }
 
 static unsigned int get_rr_interval_wrr(struct rq *rq, struct task_struct *task)
 {
-	printk(KERN_DEBUG "[soo] wrr_func get_rr_interval_wrr");
+#ifdef CONFIG_SCHED_DEBUG
+	printk(KERN_DEBUG "[soo] wrr_func get_rr_interval_wrr: %d", task->pid);
+#endif
 	return 0;
 }
 
-static void task_move_group_wrr(struct task_struct *p, int on_rq)
-{
-	printk(KERN_DEBUG "[soo] wrr_func task_move_group_wrr");
-}
+// static void task_move_group_wrr(struct task_struct *p, int on_rq)
+// {
+// #ifdef CONFIG_SCHED_DEBUG
+// 	printk(KERN_DEBUG "[soo] wrr_func task_move_group_wrr: %d", p->pid);
+// #endif
+// }
 
 
 const struct sched_class wrr_sched_class = {
@@ -423,7 +483,7 @@ const struct sched_class wrr_sched_class = {
 #ifdef CONFIG_FAIR_GROUP_SCHED
 	//	void (*task_move_group) (struct task_struct *p, int on_rq);
 	// fair only
-	.task_move_group = task_move_group_wrr
+	// .task_move_group = task_move_group_wrr
 #endif
 };
 
@@ -437,5 +497,16 @@ void print_wrr_stats(struct seq_file *m, int cpu)
 	// for_each_leaf_wrr_rq(cpu_rq(cpu), wrr_rq)
 		// print_wrr_rq(m, cpu, wrr_rq);
 	rcu_read_unlock();
+}
+
+void print_wrr_list(struct wrr_rq *wrr_rq)
+{
+	struct sched_wrr_entity *wrr_se;
+	struct task_struct *p;
+	list_for_each_entry(wrr_se, &wrr_rq->run_list, run_list) {
+		p = wrr_se_task_of(wrr_se);
+		printk(KERN_DEBUG "[soo] print_wrr_list task: %d", p->pid);
+	}
+	printk(KERN_DEBUG "[soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: %d, %d, %d, %llu", wrr_rq->curr, wrr_rq->wrr_nr_running, current->pid, rq_of_wrr_rq(wrr_rq)->clock);
 }
 #endif

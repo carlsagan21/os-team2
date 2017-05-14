@@ -1673,6 +1673,8 @@ static void __sched_fork(struct task_struct *p)
 
 	//soo sched_wrr_entity init
 	INIT_LIST_HEAD(&p->wrr_se.run_list);
+	p->wrr_se.weight = DEFAULT_WEIGHT;
+	p->wrr_se.time_slice = DEFAULT_WEIGHT * TIME_SLICE;
 	p->wrr_se.exec_start = 0;
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
@@ -3072,12 +3074,14 @@ need_resched:
 		switch_count = &prev->nvcsw;
 	}
 
+	if (prev->policy == SCHED_WRR) printk(KERN_DEBUG "[soo] schedule1 prev: %d", prev->pid);
+
 	pre_schedule(rq, prev);
 
 	if (unlikely(!rq->nr_running))
-		idle_balance(cpu, rq);
+		idle_balance(cpu, rq);//NOTE 다른 cpu 에서 로드발렌싱으로 가져옴.
 
-	put_prev_task(rq, prev);//NOTE 이미 빠져서 없는 테스크임. 젤 뒤에 넣어줌.
+	put_prev_task(rq, prev);//NOTE 이미 빠져서 없는 테스크임.
 	next = pick_next_task(rq);//NOTE 다음 task 선택
 	clear_tsk_need_resched(prev);
 	rq->skip_clock_update = 0;
@@ -3094,7 +3098,7 @@ need_resched:
 		 * this task called schedule() in the past. prev == current
 		 * is still correct, but it can be moved to another cpu/rq.
 		 */
-		//NOTE soo 컨텍스트 스위칭이 일어나면 stack 이복구된다. prev == current 는 동일. rq->curr 가 아니라 sched 의 current. 다만 다른 cpu 로 옮겨 감.
+		//NOTE soo 컨텍스트 스위칭이 일어나면 stack 이 복구된다. prev == current 는 동일. rq->curr 가 아니라 sched 의 current. 다만 다른 cpu 로 옮겨 감.
 		cpu = smp_processor_id();
 		rq = cpu_rq(cpu);
 	} else
@@ -3102,6 +3106,8 @@ need_resched:
 
 	exynos_ss_task(cpu, rq->curr);
 	post_schedule(rq);
+
+	if (next->policy == SCHED_WRR || prev->policy == SCHED_WRR) printk(KERN_DEBUG "[soo] schedule2 prev, next: %d, %d", prev->pid, next->pid);
 
 	sched_preempt_enable_no_resched();
 	if (need_resched())//NOTE 혹시 아직 스케줄링 필요하면 다시 돌아가서 시킨다.
@@ -3924,6 +3930,8 @@ __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 	else
 		p->sched_class = &fair_sched_class;
 
+		if (policy == SCHED_WRR) printk(KERN_DEBUG "[soo] call __setscheduler: %d", p->pid);
+
 	set_load_weight(p);
 }
 
@@ -3952,7 +3960,7 @@ static int __sched_setscheduler(struct task_struct *p, int policy,
 	struct rq *rq;
 	int reset_on_fork;
 
-	if (policy == SCHED_WRR) printk(KERN_DEBUG "[soo] call __sched_setscheduler %d, %d\n", p->policy, p->sched_class);
+	// if (policy == SCHED_WRR) printk(KERN_DEBUG "[soo] call __sched_setscheduler %d, %d\n", p->policy, p->sched_class);
 
 	/* may grab non-irq protected spin_locks */
 	BUG_ON(in_interrupt());
@@ -4067,7 +4075,7 @@ recheck:
 	}
 #endif
 
-	if (policy == SCHED_WRR) printk(KERN_DEBUG "[soo] call __sched_setscheduler2: %d, %d\n", oldpolicy, p->policy);
+	// if (policy == SCHED_WRR) printk(KERN_DEBUG "[soo] call __sched_setscheduler2: %d, %d\n", oldpolicy, p->policy);
 	/* recheck policy now with rq lock held */
 	if (unlikely(oldpolicy != -1 && oldpolicy != p->policy)) {
 		policy = oldpolicy = -1;
@@ -4081,7 +4089,7 @@ recheck:
 	if (running) //NOTE soo 지금 돌고있는 프로세스라면, 현재의 스케줄러의 젤 뒤로 넘겨준다. NORMAL
 		p->sched_class->put_prev_task(rq, p);
 
-	if (policy == SCHED_WRR) printk(KERN_DEBUG "[soo] call __sched_setscheduler3: %d, %d\n", on_rq, running);
+	// if (policy == SCHED_WRR) printk(KERN_DEBUG "[soo] call __sched_setscheduler3: %d, %d\n", on_rq, running);
 
 	p->sched_reset_on_fork = reset_on_fork;
 
@@ -4988,6 +4996,7 @@ static int __migrate_task(struct task_struct *p, int src_cpu, int dest_cpu)
 		set_task_cpu(p, dest_cpu);
 		enqueue_task(rq_dest, p, 0);
 		check_preempt_curr(rq_dest, p, 0);
+		if (p->policy == SCHED_WRR) printk(KERN_DEBUG "[soo] __migrate_task: %d", p->pid);
 	}
 done:
 	ret = 1;

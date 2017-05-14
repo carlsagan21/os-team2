@@ -1,0 +1,63 @@
+[  172.925620] [soo] schedule2 prev, next: 0, 10481
+[  308.457544] [soo] call __setscheduler: 15114
+[  308.457569] [soo] call __sched_setscheduler4: 1, 1, -1066131436, -1066130980
+[  308.457582] [c1] [soo] wrr_func set_curr_task_wrr
+[  308.457593] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 15114, 308457520910
+[  308.457604] [soo] wrr_func enqueue_task_wrr: 15114, 0
+[  308.457610] [soo] print_wrr_list task: 15114
+[  308.457622] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 15114, 308457601660
+[  308.457632] [soo] wrr_func switched_to_wrr: 15114
+[  308.457678] [soo] wrr_func check_preempt_curr_wrr: 15114
+[  308.459765] [soo] wrr_func task_tick_wrr: 15114
+[  308.460129] [soo] schedule1 prev: 15114
+[  308.460143] [soo] wrr_func put_prev_task_wrr: 15114
+[  308.460218] [soo] wrr_func pick_next_task_wrr2: 15114
+[  308.460230] [soo] print_wrr_list task: 15114
+[  308.460244] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 4138, 308460203702
+[  308.460254] [soo] schedule2 prev, next: 15114, 4138
+[  308.461413] [soo] schedule1 prev: 15114
+[  308.461426] [soo] wrr_func put_prev_task_wrr: 15114
+[  308.461445] [soo] schedule2 prev, next: 4138, 15114
+[  308.461490] [soo] wrr_func pick_next_task_wrr2: 15114
+[  308.461499] [soo] print_wrr_list task: 15114
+[  308.461506] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 4138, 308461479869
+[  308.461517] [soo] schedule2 prev, next: 15114, 4138
+[  308.462714] [soo] schedule1 prev: 15114
+[  308.462727] [soo] wrr_func put_prev_task_wrr: 15114
+[  308.462737] [soo] schedule2 prev, next: 4138, 15114
+[  308.462780] [soo] wrr_func pick_next_task_wrr2: 15114
+[  308.462786] [soo] print_wrr_list task: 15114
+[  308.462795] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 4138, 308462771994
+[  308.462803] [soo] schedule2 prev, next: 15114, 4138
+[  308.463924] [soo] schedule1 prev: 15114
+[  308.463932] [soo] wrr_func put_prev_task_wrr: 15114
+[  308.463947] [soo] schedule2 prev, next: 4138, 15114
+[  308.463987] [soo] wrr_func pick_next_task_wrr2: 15114
+[  308.463997] [soo] print_wrr_list task: 15114
+[  308.464004] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 4138, 308463978285
+[  308.464015] [soo] schedule2 prev, next: 15114, 4138
+[  308.464759] [soo] wrr_func task_tick_wrr: 15114
+[  308.464937] [soo] wrr_func check_preempt_curr_wrr: 15114
+[  308.465139] [soo] schedule1 prev: 15114
+[  308.465156] [soo] wrr_func put_prev_task_wrr: 15114
+[  308.465170] [soo] schedule2 prev, next: 4138, 15114
+[  308.465220] [soo] wrr_func pick_next_task_wrr2: 15114
+[  308.465232] [soo] print_wrr_list task: 15114
+[  308.465243] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 4138, 308465210410
+[  308.465251] [soo] schedule2 prev, next: 15114, 4138
+[  308.465562] [soo] wrr_func dequeue_task_wrr: 15114, 308465210410
+[  308.465572] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 15114, 308465556119
+[  308.465587] [soo] wrr_func put_prev_task_wrr: 15114
+[  308.465593] [soo] wrr_func set_curr_task_wrr
+[  308.465607] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 15114, 308465556119
+[  308.465615] [soo] wrr_func enqueue_task_wrr: 15114, 308465210410
+[  308.465625] [soo] print_wrr_list task: 15114
+[  308.465632] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 1, 15114, 308465611035
+[  308.465693] [soo] wrr_func dequeue_task_wrr: 15114, 308465210410
+[  308.465704] [soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: 0, 0, 15114, 308465689619
+[  308.465713] [soo] schedule1 prev: 15114
+[  308.465719] [soo] wrr_func put_prev_task_wrr: 15114
+[  308.465738] [soo] schedule2 prev, next: 725, 15114
+[  308.466473] [soo] schedule2 prev, next: 4138, 15114
+[  308.466868] [soo] schedule2 prev, next: 0, 15114
+[  308.494776] [soo] schedule2 prev, next: 516, 15114

@@ -13,15 +13,15 @@ int prime_number_factorize (int x)
 {
 	if(x==1)
 	{
-		// printf("\n");
+		printf("\n");
 		 return 0;
 	}
 	for(int i=2; i<=x; i++)
 	{
 		if(x%i==0)
 		{
-			// printf("%d",i);
-			// if(x/i != 1) printf(" * ");
+			printf("%d",i);
+			if(x/i != 1) printf(" * ");
 			prime_number_factorize(x/i);
 			break;
 		}
@@ -30,7 +30,7 @@ int prime_number_factorize (int x)
 
 int trial_imple(int x)
 {
-	// printf("%d = ", x);
+	printf("%d = ", x);
 	prime_number_factorize(x);
 }
 
@@ -45,12 +45,12 @@ int main(){
 
 	printf("middle policy = %d \n", sched_getscheduler(0));
 
-	int i;
-	i++;
-	for (i = 0; i < 1e4; i++) {
-		trial_imple(i);
-	}
-	// sleep(2);
+	// int i;
+	// i++;
+	// for (i = 0; i < 10; i++) {
+	// 	trial_imple(i);
+	// }
+	sleep(10);
 	//NOTE soo 지금 현재 preempt 가 되면 진행이 정지된다. enqueue_task 까지는 불리지만 실제로 진행되지 않는다.
 	// 반면, for 로 연속 계산을 하면 진행이 될 때도 있고 안될 때도 있다. preempt 가 안일어나면
 	// 정상작동한다는 가정을 세워볼 수 있다.
