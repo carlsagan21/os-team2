@@ -756,6 +756,7 @@ static void set_load_weight(struct task_struct *p)
 {
 	int prio = p->static_prio - MAX_RT_PRIO;
 	struct load_weight *load = &p->se.load;
+	struct sched_wrr_entity *wrr_se = &p->wrr_se;
 
 	/*
 	 * SCHED_IDLE tasks get minimal weight:
@@ -764,6 +765,11 @@ static void set_load_weight(struct task_struct *p)
 		load->weight = scale_load(WEIGHT_IDLEPRIO);
 		load->inv_weight = WMULT_IDLEPRIO;
 		return;
+	}
+
+	if (p->policy == SCHED_WRR) {
+		wrr_se->weight = DEFAULT_WEIGHT;
+		wrr_se->time_slice = DEFAULT_WEIGHT * TIME_SLICE;
 	}
 
 	load->weight = scale_load(prio_to_weight[prio]);
@@ -1760,13 +1766,15 @@ void sched_fork(struct task_struct *p)
 		p->sched_reset_on_fork = 0;
 	}
 
+	//TODO soo not sure
+	if (task_has_wrr_policy(p))
+		p->sched_class = &wrr_sched_class;
 	if (!rt_prio(p->prio))
 		p->sched_class = &fair_sched_class;//TODO soo 지금은 fort 한 것이 wrr 로는 못됨.
-	// else if (task_has_wrr_policy(p))
 	// TODO woong : Need to intialize sched_class to wrr_sched_class if necessary
 	//p -> sched_class = &wrr_sched_class;
 	if (p->sched_class->task_fork)
-		p->sched_class->task_fork(p);//TODO soo 공부 및 구현
+		p->sched_class->task_fork(p);
 
 	/*
 	 * The child is not yet in the pid-hash so no cgroup attach races,
@@ -2970,7 +2978,7 @@ pick_next_task(struct rq *rq)
 	 * the fair class we can call that function directly:
 	 */
 	if (likely(rq->nr_running == rq->cfs.h_nr_running)) {
-		p = fair_sched_class.pick_next_task(rq);
+		p = fair_sched_class.pick_next_task(rq);//TODO fix
 		if (likely(p))
 			return p;
 	}
@@ -3721,10 +3729,14 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	if (running)
 		p->sched_class->put_prev_task(rq, p);
 
-	if (rt_prio(prio))
-		p->sched_class = &rt_sched_class;
-	else
-		p->sched_class = &fair_sched_class;
+	if (p->policy != SCHED_WRR) {
+		if (rt_prio(prio))
+			p->sched_class = &rt_sched_class;
+		else
+			p->sched_class = &fair_sched_class;
+	} else {
+		p->sched_class = &wrr_sched_class;
+	}
 
 	p->prio = prio;
 
@@ -3917,7 +3929,9 @@ __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 	p->normal_prio = normal_prio(p);
 	/* we are holding p->pi_lock already */
 	p->prio = rt_mutex_getprio(p);
-	if (rt_prio(p->prio)) {
+	if (policy == SCHED_WRR) {
+		p->sched_class = &wrr_sched_class;
+	} else if (rt_prio(p->prio)) {
 		p->sched_class = &rt_sched_class;
 #ifdef CONFIG_SCHED_HMP
 		if (cpumask_equal(&p->cpus_allowed, cpu_all_mask))
@@ -7200,7 +7214,7 @@ void __init sched_init(void)
 	/*
 	 * During early bootup we pretend to be a normal task:
 	 */
-	current->sched_class = &fair_sched_class;
+	current->sched_class = &fair_sched_class;//TODO soo
 
 #ifdef CONFIG_SMP
 	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
@@ -7271,7 +7285,7 @@ static void normalize_task(struct rq *rq, struct task_struct *p)
 	on_rq = p->on_rq;
 	if (on_rq)
 		dequeue_task(rq, p, 0);
-	__setscheduler(rq, p, SCHED_NORMAL, 0);
+	__setscheduler(rq, p, SCHED_NORMAL, 0);//TODO soo
 	if (on_rq) {
 		enqueue_task(rq, p, 0);
 		resched_task(rq->curr);

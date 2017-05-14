@@ -9,6 +9,7 @@ void print_wrr_list(struct wrr_rq *wrr_rq);
 void init_wrr_rq(struct wrr_rq *wrr_rq)
 {
 	wrr_rq->wrr_nr_running = 0;
+	wrr_rq->total_weight = 0;
 	wrr_rq->curr = NULL;
 	wrr_rq->next = NULL;
 	wrr_rq->first = NULL;
@@ -89,6 +90,47 @@ static void requeue_task_wrr(struct rq *rq, struct task_struct *p, int head)
 	list_move_tail(&wrr_se->run_list, &wrr_rq->run_list);
 }
 
+static void update_curr_wrr(struct rq *rq)
+{
+	// struct task_struct *curr;
+	// struct sched_wrr_entity *se;
+  // struct list_head *rq_list;
+  // struct list_head *se_list;
+  // struct list_head *next;
+  // struct wrr_rq *wrr_rq;
+	//
+  // wrr_rq = &rq->wrr;
+	//
+	// raw_spin_lock(&wrr_rq->lock);
+	//
+  // rq_list = wrr_rq_list(wrr_rq);
+	//
+	// if (rq->wrr.curr == NULL) {
+	// 	raw_spin_unlock(&wrr_rq->lock);
+	// 	return;
+	// }
+	// curr = rq->wrr.curr;
+	// se = &curr->wrr;
+	// se_list = &se->run_list;
+	//
+	// /* Decrease the time slice of currently running task until it reaches zero */
+	// if (--se->time_slice) {
+	// 	raw_spin_unlock(&wrr_rq->lock);
+	// 	return;
+	// }
+	//
+	// if (se_list->next != se_list->prev) { /* < If more than one element in the list, move the cursor to the next task and resched */
+	// 	next = se_list->next;
+	// 	if (next == &wrr_rq->run_queue)
+	// 		next = next->next;
+	// 	wrr_rq->curr = wrr_task_of(list_entry(next, struct sched_wrr_entity, run_list));
+	// 	set_tsk_need_resched(curr);
+	// } else
+	// 	se->time_slice = se->weight * WRR_TIMESLICE; /* < Else, refill the current task's time_slice */
+	//
+	// raw_spin_unlock(&wrr_rq->lock);
+}
+
 //soo class methods
 /*rt
  * Adding/removing a task to/from a priority array:
@@ -102,12 +144,13 @@ static void
 enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct sched_wrr_entity *wrr_se = &p->wrr_se;
-	//
-	// //TODO flag 처리
-	//
+
+	//TODO flag 처리
+
 	enqueue_wrr_entity(&rq->wrr, wrr_se, 0);
 
 	inc_nr_running(rq);
+	wrr_rq_of_task(p).total_weight += wrr_se->weight;
 	p->on_rq = 1;
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func enqueue_task_wrr: %d, %llu", p->pid, p->wrr_se.exec_start);
@@ -133,6 +176,7 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	rq->wrr.wrr_nr_running--;
 
 	dec_nr_running(rq);
+	wrr_rq_of_task(p).total_weight -= wrr_se->weight;
 	p->on_rq = 0;
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func dequeue_task_wrr: %d, %llu", p->pid, p->wrr_se.exec_start);
@@ -205,7 +249,7 @@ static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 {
 	struct wrr_rq *wrr_rq = &rq->wrr;
 	wrr_rq->curr = NULL;
-	list_move_tail(&prev->wrr_se.run_list, &wrr_rq->run_list);
+	//TODO list_move_tail(&prev->wrr_se.run_list, &wrr_rq->run_list);
 	// requeue_task_wrr(rq, rq->curr, 0);
 	// enqueue_task_wrr(rq, prev, 0);// FIXME 리스트에 추가하고, rq 와 wrr_rq 에 nr 을 올려줘야하나? 지금은 올려줌.
 	// 안올려줄경우
@@ -328,6 +372,7 @@ static void set_curr_task_wrr(struct rq *rq)
  */
 static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
 {
+	update_curr_wrr(rq);
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr: %d", curr->pid);
 #endif
@@ -340,6 +385,8 @@ static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
  */
 static void task_fork_wrr(struct task_struct *p)
 {
+	p->wrr_se.weight = p->real_parent->wrr_se.weight;
+	p->wrr_se.time_slice = p->wrr_se.weight * TIME_SLICE;
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func task_fork_wrr: %d", p->pid);
 #endif
@@ -505,7 +552,7 @@ void print_wrr_list(struct wrr_rq *wrr_rq)
 	struct task_struct *p;
 	list_for_each_entry(wrr_se, &wrr_rq->run_list, run_list) {
 		p = wrr_se_task_of(wrr_se);
-		printk(KERN_DEBUG "[soo] print_wrr_list task: %d", p->pid);
+		printk(KERN_DEBUG "[soo] print_wrr_list task: %d, %d, %d, %d", p->pid, p->wrr_se.weight, p->wrr_se.time_slice, HZ);
 	}
 	printk(KERN_DEBUG "[soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: %d, %d, %d, %llu", wrr_rq->curr, wrr_rq->wrr_nr_running, current->pid, rq_of_wrr_rq(wrr_rq)->clock);
 }

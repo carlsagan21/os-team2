@@ -263,78 +263,37 @@ void print_rt_rq(struct seq_file *m, int cpu, struct rt_rq *rt_rq)
 }
 
 //soo print_wrr_rq
-void print_wrr_rq(struct seq_file *m, int cpu, struct wrr_rq *wrr_rq)
-{
-	// s64 MIN_vruntime = -1, min_vruntime, max_vruntime = -1,
-	// 	spread, rq0_min_vruntime, spread0;
-	// struct rq *rq = cpu_rq(cpu);
-	// struct sched_entity *last;
-	// unsigned long flags;
-
-// #ifdef CONFIG_FAIR_GROUP_SCHED
-// 	SEQ_printf(m, "\nwrr_rq[%d]:%s\n", cpu, task_group_path(wrr_rq->tg));
-// #else
-// 	SEQ_printf(m, "\nwrr_rq[%d]:\n", cpu);
-// #endif
-	//TODO soo print format. struct wrr 정의 이후에 고칠것
-	// SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "exec_clock",
-	// 		SPLIT_NS(wrr_rq->exec_clock));
-	//
-	// raw_spin_lock_irqsave(&rq->lock, flags);
-	// if (wrr_rq->rb_leftmost)
-	// 	MIN_vruntime = (__pick_first_entity(wrr_rq))->vruntime;
-	// last = __pick_last_entity(wrr_rq);
-	// if (last)
-	// 	max_vruntime = last->vruntime;
-	// min_vruntime = wrr_rq->min_vruntime;
-	// rq0_min_vruntime = cpu_rq(0)->wrr.min_vruntime;
-	// raw_spin_unlock_irqrestore(&rq->lock, flags);
-	// SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "MIN_vruntime",
-	// 		SPLIT_NS(MIN_vruntime));
-	// SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "min_vruntime",
-	// 		SPLIT_NS(min_vruntime));
-	// SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "max_vruntime",
-	// 		SPLIT_NS(max_vruntime));
-	// spread = max_vruntime - MIN_vruntime;
-	// SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "spread",
-	// 		SPLIT_NS(spread));
-	// spread0 = min_vruntime - rq0_min_vruntime;
-	// SEQ_printf(m, "  .%-30s: %Ld.%06ld\n", "spread0",
-	// 		SPLIT_NS(spread0));
-	// SEQ_printf(m, "  .%-30s: %d\n", "nr_spread_over",
-	// 		wrr_rq->nr_spread_over);
-	// SEQ_printf(m, "  .%-30s: %d\n", "nr_running", wrr_rq->nr_running);
-	// SEQ_printf(m, "  .%-30s: %ld\n", "load", wrr_rq->load.weight);
-
-// #ifdef CONFIG_FAIR_GROUP_SCHED
-// #ifdef CONFIG_SMP
-// 	SEQ_printf(m, "  .%-30s: %lld\n", "runnable_load_avg",
-// 			wrr_rq->runnable_load_avg);
-// 	SEQ_printf(m, "  .%-30s: %lld\n", "blocked_load_avg",
-// 			wrr_rq->blocked_load_avg);
-// 	SEQ_printf(m, "  .%-30s: %lld\n", "tg_load_avg",
-// 			(unsigned long long)atomic64_read(&wrr_rq->tg->load_avg));
-// 	SEQ_printf(m, "  .%-30s: %lld\n", "tg_load_contrib",
-// 			wrr_rq->tg_load_contrib);
-// 	SEQ_printf(m, "  .%-30s: %d\n", "tg_runnable_contrib",
-// 			wrr_rq->tg_runnable_contrib);
-// 	SEQ_printf(m, "  .%-30s: %d\n", "tg->runnable_avg",
-// 			atomic_read(&wrr_rq->tg->runnable_avg));
-// 	SEQ_printf(m, "  .%-30s: %d\n", "tg->usage_avg",
-// 			atomic_read(&wrr_rq->tg->usage_avg));
-// #endif
-// #ifdef CONFIG_CFS_BANDWIDTH
-// 	SEQ_printf(m, "  .%-30s: %d\n", "tg->wrr_bandwidth.timer_active",
-// 			wrr_rq->tg->wrr_bandwidth.timer_active);
-// 	SEQ_printf(m, "  .%-30s: %d\n", "throttled",
-// 			wrr_rq->throttled);
-// 	SEQ_printf(m, "  .%-30s: %d\n", "throttle_count",
-// 			wrr_rq->throttle_count);
-// #endif
-//
-// 	print_wrr_group_stats(m, cpu, wrr_rq->tg);
-// #endif
+void print_wrr_rq(struct seq_file *m, int cpu, struct wrr_rq *wrr_rq){
+	printk("\nwrr_rq[%d] running#: %d\n", cpu, wrr_rq->nr_running);
+	SEQ_printf(m, "\nwrr_rq[%d]:\n", cpu);
 }
+// void print_wrr_rq(int cpu, struct rq *rq){
+// 	struct wrr_rq *wrr_rq;
+// 	struct sched_wrr_entity *se;
+// 	struct list_head *list;
+// 	struct task_struct *p;
+// 	wrr_rq = &rq->wrr;
+// 	se = &wrr_rq->run_queue;
+// 	list = &se->run_list;
+// 	printk("\nwrr_rq[%d] total weight#: %ld running#: %d\n", cpu, wrr_rq->total_weight, wrr_rq->nr_running);
+// 	list_for_each_entry(se, list, run_list) {
+//     p = container_of(se, struct task_struct, wrr);
+// 		printk("pid#: %d weight#: %d\n", p->pid, se->weight);
+// 	}
+// }
+#ifdef CONFIG_SCHED_DEBUG
+void print_wrr_stats(struct seq_file *m, int cpu)
+{
+	struct wrr_rq *wrr_rq = &cpu_rq(cpu)->wrr;
+	struct sched_wrr_entity *wrr_se;
+	struct task_struct *tsk;
+	SEQ_printf(m, "\nwrr_rq[%d]\n", cpu);
+	list_for_each_entry(wrr_se, &wrr_rq->run_queue, run_list) {
+		tsk = container_of(wrr_se, struct task_struct, wrr);
+		SEQ_printf(m, "pid %d with weight %d\n", tsk->pid, tsk->wrr.weight);
+	}
+}
+#endif
 
 extern __read_mostly int sched_clock_running;
 
