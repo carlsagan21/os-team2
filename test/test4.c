@@ -11,6 +11,8 @@
 int main()
 {
 	struct sched_param param, new_param;
+	// int i = 0, j = 0;
+
   printf("start policy = %d \n", sched_getscheduler(0));
 
 	if (sched_setscheduler(0, SCHED_WRR, &param) != 0) {
@@ -24,15 +26,17 @@ int main()
 	sleep(5);
 	if (fork()) {
 		//parent
-		int i = 1e6;
+		// int i = 0;
 		while(1) {
+			// printf("parent: %d\n", i++);
 			printf("%d", 1);
 		}
 	} else {
 		//child
-		int i = 1e6;
+		// int j = 0;
 		syscall(__NR_sched_setweight, 0, 20);
 		while(1) {
+			// printf("child: %d\n", j++);
 			printf("%d", 2);
 		}
 	}
