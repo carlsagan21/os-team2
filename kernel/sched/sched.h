@@ -10,6 +10,9 @@
 #include "cpupri.h"
 #include "cpuacct.h"
 
+#define DEFAULT_WEIGHT 10
+#define TIME_SLICE (HZ / 20) //NOTE soo HZ == 200
+
 extern __read_mostly int scheduler_running;
 
 /*
@@ -379,6 +382,7 @@ struct rt_rq {
 //NOTE woong: classes containing related fiels of wrr
 struct wrr_rq {
 	unsigned int wrr_nr_running;
+	unsigned int total_weight;
 	/*
 	 * 'curr' points to currently running entity on this wrr_rq.
 	 * It is set to NULL otherwise (i.e when none are currently running).
@@ -1315,6 +1319,7 @@ static inline void double_unlock_balance(struct rq *this_rq, struct rq *busiest)
 	lock_set_subclass(&this_rq->lock.dep_map, 0, _RET_IP_);
 }
 
+//NOTE soo 두 rq 를 동시에 락을 잡는 매크로.
 /*
  * double_rq_lock - safely lock two runqueues
  *
@@ -1396,6 +1401,7 @@ extern struct sched_entity *__pick_first_entity(struct cfs_rq *cfs_rq);
 extern struct sched_entity *__pick_last_entity(struct cfs_rq *cfs_rq);
 extern void print_cfs_stats(struct seq_file *m, int cpu);
 extern void print_rt_stats(struct seq_file *m, int cpu);
+extern void printf_wrr_stats(struct seq_file *m, int cpu);
 
 extern void init_cfs_rq(struct cfs_rq *cfs_rq);
 extern void init_rt_rq(struct rt_rq *rt_rq, struct rq *rq);
