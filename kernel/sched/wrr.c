@@ -192,6 +192,7 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 static void yield_task_wrr(struct rq *rq)
 {
 	// requeue_task_wrr(rq, rq->curr, 0);
+	// TODO list_move_tail
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func yield_task_wrr");
 	print_wrr_list(&rq->wrr);
@@ -238,6 +239,7 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func pick_next_task_wrr2: %d", wrr_se_task_of(wrr_se)->pid);
 	print_wrr_list(&rq->wrr);
+	wrr_rq->curr = p;
 #endif
 	return p;
 }

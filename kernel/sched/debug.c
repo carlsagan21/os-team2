@@ -262,10 +262,21 @@ void print_rt_rq(struct seq_file *m, int cpu, struct rt_rq *rt_rq)
 #undef P
 }
 
+static inline struct task_struct *wrr_se_task_of(struct sched_wrr_entity *se)
+{
+	return container_of(se, struct task_struct, wrr_se);
+}
 //soo print_wrr_rq
 void print_wrr_rq(struct seq_file *m, int cpu, struct wrr_rq *wrr_rq){
 	printk("\nwrr_rq[%d] running#: %d\n", cpu, wrr_rq->wrr_nr_running);
 	SEQ_printf(m, "\nwrr_rq[%d]:\n", cpu);
+
+	struct sched_wrr_entity *wrr_se;
+	struct task_struct *p;
+	list_for_each_entry(wrr_se, &wrr_rq->run_list, run_list) {
+		p = wrr_se_task_of(wrr_se);
+		SEQ_printf(m, "[soo] print_wrr_rq: %d", p->pid);
+	}
 }
 // void print_wrr_rq(int cpu, struct rq *rq){
 // 	struct wrr_rq *wrr_rq;
