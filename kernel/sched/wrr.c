@@ -559,3 +559,39 @@ void print_wrr_list(struct wrr_rq *wrr_rq)
 	printk(KERN_DEBUG "[soo] print_wrr_list curr, nr_wrr_rq, current, rq->clock: %d, %d, %d, %llu", wrr_rq->curr, wrr_rq->wrr_nr_running, current->pid, rq_of_wrr_rq(wrr_rq)->clock);
 }
 #endif
+
+
+
+static void update_curr(struct rq *rq)
+{
+	struct task_struct *curr;
+	curr = rq->wrr.curr;
+
+	if(curr == NULL) return; //terminate if there is no task
+
+	struct sched_wrr_entity *se;
+	se = &curr->wrr;
+
+	if(se->time_slice > 0)
+	{
+		--se->time_slice;
+		return
+	} //if current task has remaining time slice, -1 to time slice and terminate
+
+	if(&se->run_list->next != &se->run_list->prev)//get next task
+	{
+		next = se_list->next;
+		if(next == &wrr_rq->run_queue)
+			next = next->next;
+		curr = wrr_task_of(list_entry(next, struct sched_wrr_entity, run_list));
+		set_tsk_need_resched(curr);//FIXME implement wrr_task_of()
+	}
+	else//when there is no next task, refill the timeslice
+	{
+		se->time_slice = se->weight*WRR_TIMESLICE;
+	}
+}
+
+
+		
+
