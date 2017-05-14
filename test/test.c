@@ -45,11 +45,11 @@ int main(){
 
 	printf("middle policy = %d \n", sched_getscheduler(0));
 
-	sleep(1);
+	// sleep(1);
 
 	int i;
 	i++;
-	for (i = 0; i < 1e4 * 3; i++) {
+	for (i = 0; i < 1e4 * 5; i++) {
 		trial_imple(i);
 	}
 	// sleep(2);

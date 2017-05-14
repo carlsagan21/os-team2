@@ -17,31 +17,6 @@
 #define SCHED_WRR 6
 #define SCHED_NORMAL 0
 
-int prime_number_factorize (int x)
-{
-	if(x==1)
-	{
-		// printf("\n");
-		 return 0;
-	}
-	for(int i=2; i<=x; i++)
-	{
-		if(x%i==0)
-		{
-			// printf("%d",i);
-			// if(x/i != 1) printf(" * ");
-			prime_number_factorize(x/i);
-			break;
-		}
-	}
-}
-
-int trial_imple(int x)
-{
-	// printf("%d = ", x);
-	prime_number_factorize(x);
-}
-
 int main(int argc, char* argv[])
 {
 	struct sched_param param, new_param;
@@ -53,15 +28,7 @@ int main(int argc, char* argv[])
 
 	printf("middle policy = %d \n", sched_getscheduler(0));
 
-	fork();
-
-	// while (1) {
-	int i;
-	i++;
-	for (i = 0; i < 1e4 * 3; i++) {
-		trial_imple(i);
-	}
-	// }
+	while(1) {};
 
 	return 0;
 }
