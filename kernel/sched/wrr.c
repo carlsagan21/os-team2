@@ -93,7 +93,7 @@ static void requeue_task_wrr(struct rq *rq, struct task_struct *p, int head)
 static void update_curr_wrr(struct rq *rq)
 {
 	// struct task_struct *curr;
-	// struct sched_wrr_entity *se;
+	// struct sched_wrr_entity *wrr_se;
   // struct list_head *rq_list;
   // struct list_head *se_list;
   // struct list_head *next;
@@ -101,21 +101,21 @@ static void update_curr_wrr(struct rq *rq)
 	//
   // wrr_rq = &rq->wrr;
 	//
-	// raw_spin_lock(&wrr_rq->lock);
+	// // raw_spin_lock(&wrr_rq->lock);
 	//
   // rq_list = wrr_rq_list(wrr_rq);
 	//
-	// if (rq->wrr.curr == NULL) {
-	// 	raw_spin_unlock(&wrr_rq->lock);
+	// if (rq->curr == NULL || rq->wrr.curr == NULL) {
+	// 	// raw_spin_unlock(&wrr_rq->lock);
 	// 	return;
 	// }
-	// curr = rq->wrr.curr;
-	// se = &curr->wrr;
-	// se_list = &se->run_list;
+	// wrr_se = rq->wrr.curr;
+	// // se = &curr->wrr;
+	// // se_list = &se->run_list;
 	//
 	// /* Decrease the time slice of currently running task until it reaches zero */
-	// if (--se->time_slice) {
-	// 	raw_spin_unlock(&wrr_rq->lock);
+	// if (--wrr_se->time_slice) {
+	// 	// raw_spin_unlock(&wrr_rq->lock);
 	// 	return;
 	// }
 	//
@@ -128,7 +128,7 @@ static void update_curr_wrr(struct rq *rq)
 	// } else
 	// 	se->time_slice = se->weight * WRR_TIMESLICE; /* < Else, refill the current task's time_slice */
 	//
-	// raw_spin_unlock(&wrr_rq->lock);
+	// // raw_spin_unlock(&wrr_rq->lock);
 }
 
 //soo class methods

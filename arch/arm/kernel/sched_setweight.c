@@ -44,6 +44,8 @@ int sys_sched_setweight(pid_t pid, int weight){
 	// }
 
 	p->wrr_se.weight = weight;
+	// TODO soo
+	// on_rq 이면 delta 를 빼줘야.
 	// rq = task_rq(p);
 	// rq->wrr.total_weight -= delta;
 
