@@ -150,7 +150,7 @@ enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	enqueue_wrr_entity(&rq->wrr, wrr_se, 0);
 
 	inc_nr_running(rq);
-	wrr_rq_of_task(p).total_weight += wrr_se->weight;
+	wrr_rq_of_task(p)->total_weight += wrr_se->weight;
 	p->on_rq = 1;
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func enqueue_task_wrr: %d, %llu", p->pid, p->wrr_se.exec_start);
@@ -176,7 +176,7 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	rq->wrr.wrr_nr_running--;
 
 	dec_nr_running(rq);
-	wrr_rq_of_task(p).total_weight -= wrr_se->weight;
+	wrr_rq_of_task(p)->total_weight -= wrr_se->weight;
 	p->on_rq = 0;
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func dequeue_task_wrr: %d, %llu", p->pid, p->wrr_se.exec_start);

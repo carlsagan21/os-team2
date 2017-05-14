@@ -264,7 +264,7 @@ void print_rt_rq(struct seq_file *m, int cpu, struct rt_rq *rt_rq)
 
 //soo print_wrr_rq
 void print_wrr_rq(struct seq_file *m, int cpu, struct wrr_rq *wrr_rq){
-	printk("\nwrr_rq[%d] running#: %d\n", cpu, wrr_rq->nr_running);
+	printk("\nwrr_rq[%d] running#: %d\n", cpu, wrr_rq->wrr_nr_running);
 	SEQ_printf(m, "\nwrr_rq[%d]:\n", cpu);
 }
 // void print_wrr_rq(int cpu, struct rq *rq){
@@ -282,17 +282,17 @@ void print_wrr_rq(struct seq_file *m, int cpu, struct wrr_rq *wrr_rq){
 // 	}
 // }
 #ifdef CONFIG_SCHED_DEBUG
-void print_wrr_stats(struct seq_file *m, int cpu)
-{
-	struct wrr_rq *wrr_rq = &cpu_rq(cpu)->wrr;
-	struct sched_wrr_entity *wrr_se;
-	struct task_struct *tsk;
-	SEQ_printf(m, "\nwrr_rq[%d]\n", cpu);
-	list_for_each_entry(wrr_se, &wrr_rq->run_queue, run_list) {
-		tsk = container_of(wrr_se, struct task_struct, wrr);
-		SEQ_printf(m, "pid %d with weight %d\n", tsk->pid, tsk->wrr.weight);
-	}
-}
+// void print_wrr_stats(struct seq_file *m, int cpu)
+// {
+// 	struct wrr_rq *wrr_rq = &cpu_rq(cpu)->wrr;
+// 	struct sched_wrr_entity *wrr_se;
+// 	struct task_struct *tsk;
+// 	SEQ_printf(m, "\nwrr_rq[%d]\n", cpu);
+// 	list_for_each_entry(wrr_se, &wrr_rq->run_queue, run_list) {
+// 		tsk = container_of(wrr_se, struct task_struct, wrr);
+// 		SEQ_printf(m, "pid %d with weight %d\n", tsk->pid, tsk->wrr.weight);
+// 	}
+// }
 #endif
 
 extern __read_mostly int sched_clock_running;
