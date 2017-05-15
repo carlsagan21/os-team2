@@ -90,15 +90,11 @@
 #define CREATE_TRACE_POINTS
 #include <trace/events/sched.h>
 
-
 /* set_weight, get_weight system calls */
-
 /* Set the SCHED_WRR weight of process, as identified by 'pid'
  * If 'pid' is 0, set the weight for the calling process
  * System call number 384
  */
-// #define WRR_TIMESLICE (HZ / 100)
-
 int sys_sched_setweight(pid_t pid, int weight)
 {
 	printk(KERN_DEBUG "[soo] sys_sched_setweight");
@@ -136,7 +132,7 @@ int sys_sched_setweight(pid_t pid, int weight)
 	//  rq = cpu_rq(task_cpu(p));
 	//  rq->wrr.total_weight -= delta;
 
-	 return 0;
+	return 0;
 }
 
 /* Obtain the SCHED_WRR weight of a process as identified by 'pid'.
@@ -160,7 +156,103 @@ int sys_sched_getweight(pid_t pid)
 	//          return -EINVAL;
 	//  }
 
-	 return 0;
+	return 0;
+}
+
+/*set_weight, get_weight system calls*/
+/*load_balance*/
+
+static int is_migratable(struct rq *rq, struct task_struct *p, int dest_cpu)
+{
+	if (rq->curr == p)
+		return 0;
+	if (!cpumask_test_cpu(dest_cpu, tsk_cpus_allowed(p)))
+		return 0;
+
+	return 1;
+}
+
+
+#define LB_INTERVAL (2 * HZ)
+DEFINE_SPINLOCK(balance_lock);
+unsigned long balance_timestamp;
+
+/*load_balance*/
+
+static void load_balance_wrr(struct rq *rq)
+{
+    //    int cpu;
+    //    unsigned int max_weight = rq->wrr.total_weight;
+    //    unsigned int min_weight = rq->wrr.total_weight;
+    //    struct rq *min_rq = rq;
+    //    struct rq *max_rq = rq;
+    //    struct rq *temp;
+    //    struct wrr_rq *wrr;
+    //    struct list_head *list;
+    //    struct sched_wrr_entity *se, *n;
+    //    struct task_struct *mp; /* migrating task */
+    //    unsigned int mweight;
+    //    struct task_struct *p;
+    //    unsigned long now;
+		 //
+    //    spin_lock(&balance_lock);
+		 //
+    //    now = jiffies;
+    //    if (time_before(now, balance_timestamp + LB_INTERVAL)) {
+    //            spin_unlock(&balance_lock);
+    //            return;
+    //    }
+		 //
+    //    balance_timestamp = now;
+		 //
+    //    spin_unlock(&balance_lock);
+		 //
+    //    /*find min, max rq*/
+    //    rcu_read_lock();
+    //    for_each_online_cpu(cpu) {
+    //            temp = cpu_rq(cpu);
+    //            wrr = &temp->wrr;
+		 //
+    //            if (wrr->total_weight < min_weight) {
+    //                    min_rq = temp;
+    //                    min_weight = wrr->total_weight;
+    //            }
+    //            if (wrr->total_weight > max_weight) {
+    //                    max_rq = temp;
+    //                    max_weight = wrr->total_weight;
+    //            }
+    //    }
+    //    rcu_read_unlock();
+		 //
+    //    if (min_rq == max_rq)
+    //            return;
+		 //
+    //    double_rq_lock(max_rq, min_rq);
+		 //
+    //    mweight = 0;
+    //    mp = NULL;
+    //    list = &max_rq->wrr.run_queue;
+		 //
+    //  list_for_each_entry_safe(se, n, list, run_list) {
+    //            p = container_of(se, struct task_struct, wrr);
+    //          if (is_migratable(max_rq, p, min_rq->cpu) &&
+    //                            se->weight > mweight &&
+    //                            min_weight + se->weight < max_weight - se->weight) {
+    //                    mp = p;
+    //                    mweight = se->weight;
+    //            }
+    //    }
+		 //
+    //    if (mp == NULL) {
+    //            double_rq_unlock(max_rq, min_rq);
+    //            return;
+    //    }
+		 //
+    //    deactivate_task(max_rq, mp, 0);
+    //    set_task_cpu(mp, min_rq->cpu);
+    //    activate_task(min_rq, mp, 0);
+		 //
+    //    double_rq_unlock(max_rq, min_rq);
 }
 
 
@@ -197,6 +289,9 @@ void update_rq_clock(struct rq *rq)
 		return;
 
 	delta = sched_clock_cpu(cpu_of(rq)) - rq->clock;
+	//NOTE soo cpu_clock(i) provides a fast (execution time) high resolution
+	// clock with bounded drift between CPUs. The value of cpu_clock(i)
+	// is monotonic for constant i. The timestamp returned is in nanoseconds.
 	rq->clock += delta;
 	update_rq_clock_task(rq, delta);
 }
@@ -361,7 +456,7 @@ const_debug unsigned int sysctl_sched_time_avg = MSEC_PER_SEC;
  * period over which we measure -rt task cpu usage in us.
  * default: 1s
  */
-unsigned int sysctl_sched_rt_period = 1000000;
+unsigned int sysctl_sched_rt_period = 1000000; //NOTE woong: reflect info when implementing wrr_sched_period, if necessary
 
 __read_mostly int scheduler_running;
 
@@ -369,7 +464,7 @@ __read_mostly int scheduler_running;
  * part of the period that we allow rt tasks to run in us.
  * default: 0.95s
  */
-int sysctl_sched_rt_runtime = 950000;
+int sysctl_sched_rt_runtime = 950000; //NOTE woong: reflect info when implementing wrr_sched_runtime, if necessary
 
 
 
@@ -429,6 +524,7 @@ task_rq_unlock(struct rq *rq, struct task_struct *p, unsigned long *flags)
 
 /*
  * this_rq_lock - lock this runqueue and disable interrupts.
+ * NOTE woong : Lock runqueue of currently working CPU(maybe...)
  */
 static struct rq *this_rq_lock(void)
 	__acquires(rq->lock)
@@ -460,6 +556,7 @@ static void hrtick_clear(struct rq *rq)
 		hrtimer_cancel(&rq->hrtick_timer);
 }
 
+//NOTE soo high resolution tick. artik10 에서 안쓰는 듯?
 /*
  * High-resolution timer tick.
  * Runs from hardirq context with interrupts disabled.
@@ -587,6 +684,8 @@ static inline void init_hrtick(void)
  * the target CPU.
  */
 #ifdef CONFIG_SMP
+
+//NOTE woong: seems useful
 void resched_task(struct task_struct *p)
 {
 	int cpu;
@@ -608,6 +707,7 @@ void resched_task(struct task_struct *p)
 		smp_send_reschedule(cpu);
 }
 
+//NOTE woong: seems useful
 void resched_cpu(int cpu)
 {
 	struct rq *rq = cpu_rq(cpu);
@@ -823,6 +923,7 @@ static void set_load_weight(struct task_struct *p)
 {
 	int prio = p->static_prio - MAX_RT_PRIO;
 	struct load_weight *load = &p->se.load;
+	struct sched_wrr_entity *wrr_se = &p->wrr_se;
 
 	/*
 	 * SCHED_IDLE tasks get minimal weight:
@@ -833,6 +934,11 @@ static void set_load_weight(struct task_struct *p)
 		return;
 	}
 
+	if (p->policy == SCHED_WRR) {
+		wrr_se->weight = DEFAULT_WEIGHT;
+		wrr_se->time_slice = DEFAULT_WEIGHT * TIME_SLICE;
+	}
+
 	load->weight = scale_load(prio_to_weight[prio]);
 	load->inv_weight = prio_to_wmult[prio];
 }
@@ -840,7 +946,7 @@ static void set_load_weight(struct task_struct *p)
 static void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	update_rq_clock(rq);
-	sched_info_queued(p);
+	sched_info_queued(p); //NOTE soo stats.c 에 로그를 쓰는 일
 	p->sched_class->enqueue_task(rq, p, flags);
 }
 
@@ -853,6 +959,8 @@ static void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 
 void activate_task(struct rq *rq, struct task_struct *p, int flags)
 {
+	//NOTE soo 특정 테스크 상태에서(TASK_UNINTERRUPTIBLE, not PF_FROZEN) 비활성된 테스크를
+	// 문자대로라면 테스크가 로드에 기여할 때에만
 	if (task_contributes_to_load(p))
 		rq->nr_uninterruptible--;
 
@@ -927,6 +1035,8 @@ static void update_rq_clock_task(struct rq *rq, s64 delta)
 #endif
 }
 
+//NOTE soo 위의 함수는 hotplug cpu의 처리에 사용됩니다. usb 처럼 cpu 소켓을 교체하는 상황을 가정해 보겠습니다.
+// 현재 실행중인 프로세스의 nice를 최대로 상향해서 , stopmachine에 필요한 급한 연산을 처리하기 위해 사용됩니다.
 void sched_set_stop_task(int cpu, struct task_struct *stop)
 {
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
@@ -976,6 +1086,9 @@ static inline int normal_prio(struct task_struct *p)
 {
 	int prio;
 
+	//NOTE soo 어떻게 고쳐야 할까? 지금은 fair와 같이 그대로 씀.
+	if (task_has_wrr_policy(p))
+		prio = __normal_prio(p);
 	if (task_has_rt_policy(p))
 		prio = MAX_RT_PRIO-1 - p->rt_priority;
 	else
@@ -1009,21 +1122,27 @@ static int effective_prio(struct task_struct *p)
  */
 inline int task_curr(const struct task_struct *p)
 {
-	return cpu_curr(task_cpu(p)) == p;
+	return cpu_curr(task_cpu(p)) == p; //NOTE soo rq->curr 와 p 비교
 }
 
 static inline void check_class_changed(struct rq *rq, struct task_struct *p,
 				       const struct sched_class *prev_class,
 				       int oldprio)
 {
-	if (prev_class != p->sched_class) {
+	if (prev_class != p->sched_class) { //NOTE soo sched_class 가 바뀌면
+		//NOTE switched_from 이 클래스에 구현되어 있으면.
+		// rt 의 경우 single core 에서 switched_from 이 정의되어 있지 않다
 		if (prev_class->switched_from)
-			prev_class->switched_from(rq, p);
-		p->sched_class->switched_to(rq, p);
-	} else if (oldprio != p->prio)
+			prev_class->switched_from(rq, p); //NOTE prev 의 switched_from
+		p->sched_class->switched_to(rq, p); //NOTE 바뀐 클래스의 switched_to 가 호출
+	} else if (oldprio != p->prio) //NOTE soo p->prio 가 바뀌면
 		p->sched_class->prio_changed(rq, p, oldprio);
 }
 
+//NOTE soo
+// 위의 함수는 현재 실행중인 프로세스가 preempt되어야 하는지 검사해서 여러 조건이 충족하면, set_tsk_need_resched()를
+// 설정해 schedule()함수를 호출합니다.
+// 현재의 running task 가 new task 에 의해 preempted 될 수 있는지 확인
 void check_preempt_curr(struct rq *rq, struct task_struct *p, int flags)
 {
 	const struct sched_class *class;
@@ -1108,6 +1227,8 @@ struct migration_arg {
 	int dest_cpu;
 };
 
+//NOTE soo 이 함수는 p가 match_state에 해당하고 (PTRACED), 런큐에서 제거 될때 까지 wait하는 함수이며
+// ptrace 디버깅 관련 부분에서 조금 사용됩니다.
 static int migration_cpu_stop(void *data);
 
 /*
@@ -1218,6 +1339,9 @@ unsigned long wait_task_inactive(struct task_struct *p, long match_state)
 	return ncsw;
 }
 
+//NOTE soo 위의 함수는  다른 cpu에서 실행중인 process p를 커널 모드로 진입하게 하는 함수입니다.
+// 구현 방법은 다른 cpu로 interprocessor interrupt를 송신해  , 인터럽트를 유발해  커널 모드로 진입케 합니다.
+// 여러곳에서 유용하게 사용될 수 있습니다.
 /***
  * kick_process - kick a running thread to enter/exit the kernel
  * @p: the to-be-kicked thread
@@ -1318,6 +1442,13 @@ out:
 	return dest_cpu;
 }
 
+//NOTE soo
+// 위의 함수는 아주 중요하고 이해하기 어려운 함수중 하나입니다.
+// 새로운 프로세스를 실행시키는 fork()나  sleep 상태에 깨어날 때 , 로드 밸런싱을 위해 ,
+// 부모 프로세스가  수행되던 혹은 sleep 전에 수행됐던 cpu에서 계속 실행할지 ,
+// 아니면 다른 cpu로 옮겨 실행 시킬지를 결정하는 함수입니다.
+// 일종의 passive 한 load balancing이라 할 수 있고 ,
+// active 한 load balancing은 rebalance_domain()함수라 할 수 있습니다.
 /*
  * The caller (fork, wakeup) owns p->pi_lock, ->cpus_allowed is stable.
  */
@@ -1682,6 +1813,7 @@ static void __sched_fork(struct task_struct *p)
 {
 	p->on_rq			= 0;
 
+	//NOTE soo sched_entity init
 	p->se.on_rq			= 0;
 	p->se.exec_start		= 0;
 	p->se.sum_exec_runtime		= 0;
@@ -1709,7 +1841,19 @@ static void __sched_fork(struct task_struct *p)
 	memset(&p->se.statistics, 0, sizeof(p->se.statistics));
 #endif
 
+	//NOTE soo sched_rt_entity init
 	INIT_LIST_HEAD(&p->rt.run_list);
+
+	//NOTE soo sched_wrr_entity init
+	// include/linux/sched.h
+	// struct sched_wrr_entity {
+	// 	struct list_head run_list;
+	// 	unsigned int weight;
+	// 	unsigned int time_slice;
+	// }
+	INIT_LIST_HEAD(&p->wrr_se.run_list);
+	p->wrr_se.weight = DEFAULT_WEIGHT;
+	p->wrr_se.time_slice = DEFAULT_WEIGHT * TIME_SLICE;
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
 	INIT_HLIST_HEAD(&p->preempt_notifiers);
@@ -1749,6 +1893,7 @@ void set_numabalancing_state(bool enabled)
 #endif /* CONFIG_SCHED_DEBUG */
 #endif /* CONFIG_NUMA_BALANCING */
 
+// TODO soo 포크 하는 부분. 포크할때 prio 를 어떻게 할건지 정해줌.
 /*
  * fork()/clone()-time setup:
  */
@@ -1774,8 +1919,13 @@ void sched_fork(struct task_struct *p)
 	 * Revert to default priority/policy on fork if requested.
 	 */
 	if (unlikely(p->sched_reset_on_fork)) {
-		if (task_has_rt_policy(p)) {
-			p->policy = SCHED_NORMAL;
+		if (task_has_wrr_policy(p)) {
+			p->policy = SCHED_WRR;//TODO soo 기본 스케줄러를 wrr 로 바꾸면 SCHED_WRR 로 해줘야.!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+			p->static_prio = NICE_TO_PRIO(0);
+			p->rt_priority = 0;
+		}
+		else if (task_has_rt_policy(p)) {
+			p->policy = SCHED_NORMAL;//TODO soo WRR 로 해줘야.
 			p->static_prio = NICE_TO_PRIO(0);
 			p->rt_priority = 0;
 		} else if (PRIO_TO_NICE(p->static_prio) < 0)
@@ -1791,9 +1941,15 @@ void sched_fork(struct task_struct *p)
 		p->sched_reset_on_fork = 0;
 	}
 
+ // TODO soo implement!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	if (task_has_wrr_policy(p))
+		p->sched_class = &wrr_sched_class;
+else
 	if (!rt_prio(p->prio))
-		p->sched_class = &fair_sched_class;
-
+		p->sched_class = &wrr_sched_class; //TODO soo 지금은 fort 한 것이 wrr 로는 못됨.
+		// TODO woong : Need to intialize sched_class to wrr_sched_class if necessary
+		//p -> sched_class = &wrr_sched_class;
+else
 	if (p->sched_class->task_fork)
 		p->sched_class->task_fork(p);
 
@@ -1804,6 +1960,8 @@ void sched_fork(struct task_struct *p)
 	 *
 	 * Silence PROVE_RCU.
 	 */
+	/* NOTE soo Change a task's cfs_rq and parent entity if it moves across CPUs/groups */
+	// 그룹을 전제로 한 작업을 함. 그룹 없으면 무의미 ㅠㅠ
 	raw_spin_lock_irqsave(&p->pi_lock, flags);
 	set_task_cpu(p, cpu);
 	raw_spin_unlock_irqrestore(&p->pi_lock, flags);
@@ -1826,6 +1984,7 @@ void sched_fork(struct task_struct *p)
 	put_cpu();
 }
 
+//NOTE soo 현재 프로세스의 on_rq가 0이면( 새로 시작하는 프로세스라면.. ) activate_task()를 호출
 /*
  * wake_up_new_task - wake up a newly created task for the first time.
  *
@@ -2033,6 +2192,7 @@ static inline void post_schedule(struct rq *rq)
 
 #endif
 
+// NOTE soo fork 이후 호출되는 함수.
 /**
  * schedule_tail - first thing a freshly forked thread must call.
  * @prev: the thread we just switched away from.
@@ -2113,6 +2273,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
 	finish_task_switch(this_rq(), prev);
 }
 
+//NOTE soo 스케줄러 값들. Runnable threads의 수, 부팅이후 context_switch total
 /*
  * nr_running and nr_context_switches:
  *
@@ -2819,6 +2980,7 @@ unsigned long long task_sched_runtime(struct task_struct *p)
 	return ns;
 }
 
+//NOTE soo tick 에 중요한 함수
 /*
  * This function gets called by the timer code, with HZ frequency.
  * We call it with interrupts disabled.
@@ -2842,6 +3004,7 @@ void scheduler_tick(void)
 #ifdef CONFIG_SMP
 	rq->idle_balance = idle_cpu(cpu);
 	trigger_load_balance(rq, cpu);
+	load_balance_wrr(rq);
 #endif
 	rq_last_tick_reset(rq);
 }
@@ -2990,7 +3153,7 @@ pick_next_task(struct rq *rq)
 	 * the fair class we can call that function directly:
 	 */
 	if (likely(rq->nr_running == rq->cfs.h_nr_running)) {
-		p = fair_sched_class.pick_next_task(rq);
+		p = fair_sched_class.pick_next_task(rq); //TODO fix
 		if (likely(p))
 			return p;
 	}
@@ -3004,6 +3167,7 @@ pick_next_task(struct rq *rq)
 	BUG(); /* the idle class will always have a runnable task */
 }
 
+//NOTE soo main schedule method
 /*
  * __schedule() is the main scheduler function.
  *
@@ -3073,8 +3237,9 @@ need_resched:
 		if (unlikely(signal_pending_state(prev->state, prev))) {
 			prev->state = TASK_RUNNING;
 		} else {
+			//NOTE soo nr_uninterruptible++ 하고 dequeue(nr_rq, nr_rt_rq 둘다 빠짐)
 			deactivate_task(rq, prev, DEQUEUE_SLEEP);
-			prev->on_rq = 0;
+			prev->on_rq = 0;//NOTE soo rq 에 없다
 
 			/*
 			 * If a worker went to sleep, notify and ask workqueue
@@ -3095,14 +3260,14 @@ need_resched:
 	pre_schedule(rq, prev);
 
 	if (unlikely(!rq->nr_running))
-		idle_balance(cpu, rq);
+		idle_balance(cpu, rq);// NOTE 다른 cpu 에서 로드발렌싱으로 가져옴.
 
-	put_prev_task(rq, prev);
-	next = pick_next_task(rq);
+	put_prev_task(rq, prev);// NOTE 이미 빠져서 없는 테스크임.
+	next = pick_next_task(rq);// NOTE 다음 task 선택
 	clear_tsk_need_resched(prev);
 	rq->skip_clock_update = 0;
 
-	if (likely(prev != next)) {
+	if (likely(prev != next)) {// NOTE 같을수도 있구나. 빈 리스트였으면 가능할듯.
 		rq->nr_switches++;
 		rq->curr = next;
 		++*switch_count;
@@ -3114,6 +3279,7 @@ need_resched:
 		 * this task called schedule() in the past. prev == current
 		 * is still correct, but it can be moved to another cpu/rq.
 		 */
+		//NOTE soo 컨텍스트 스위칭이 일어나면 stack 이 복구된다. prev == current 는 동일. rq->current. 다만 다른 cpu 로 옮겨 감.
 		cpu = smp_processor_id();
 		rq = cpu_rq(cpu);
 	} else
@@ -3123,7 +3289,7 @@ need_resched:
 	post_schedule(rq);
 
 	sched_preempt_enable_no_resched();
-	if (need_resched())
+	if (need_resched()) // NOTE 혹시 아직 스케줄링 필요하면 다시 돌아가서 시킨다.
 		goto need_resched;
 }
 
@@ -3731,10 +3897,12 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	if (running)
 		p->sched_class->put_prev_task(rq, p);
 
-	if (rt_prio(prio))
-		p->sched_class = &rt_sched_class;
-	else
-		p->sched_class = &fair_sched_class;
+	if (p->policy != SCHED_WRR) {//TODO implement!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
+		if (rt_prio(prio))
+			p->sched_class = &rt_sched_class;
+		else
+			p->sched_class = &fair_sched_class;
+	}
 
 	p->prio = prio;
 
@@ -3771,6 +3939,7 @@ void set_user_nice(struct task_struct *p, long nice)
 		p->static_prio = NICE_TO_PRIO(nice);
 		goto out_unlock;
 	}
+	// TODO soo task_has_wrr_policy 도 필요한가?
 	on_rq = p->on_rq;
 	if (on_rq)
 		dequeue_task(rq, p, 0);
@@ -3916,16 +4085,19 @@ static struct task_struct *find_process_by_pid(pid_t pid)
 
 extern struct cpumask hmp_slow_cpu_mask;
 
+//NOTE soo 실제로 setschedule 이 일어나는 함수.
 /* Actually do priority change: must hold rq lock. */
 static void
 __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 {
-	p->policy = policy;
+	p->policy = policy;//NOTE soo 새로은 폴리시
 	p->rt_priority = prio;
 	p->normal_prio = normal_prio(p);
 	/* we are holding p->pi_lock already */
 	p->prio = rt_mutex_getprio(p);
-	if (rt_prio(p->prio)) {
+	if (wrr_policy(policy)) {
+		p->sched_class = &wrr_sched_class;
+	} else if (rt_prio(p->prio)) {
 		p->sched_class = &rt_sched_class;
 #ifdef CONFIG_SCHED_HMP
 		if (cpumask_equal(&p->cpus_allowed, cpu_all_mask))
@@ -3975,7 +4147,7 @@ recheck:
 
 		if (policy != SCHED_FIFO && policy != SCHED_RR &&
 				policy != SCHED_NORMAL && policy != SCHED_BATCH &&
-				policy != SCHED_IDLE)
+				policy != SCHED_IDLE && policy != SCHED_WRR)
 			return -EINVAL;
 	}
 
@@ -4082,9 +4254,9 @@ recheck:
 	}
 	on_rq = p->on_rq;
 	running = task_current(rq, p);
-	if (on_rq)
+	if (on_rq) //NOTE soo 만약 on_rq 가 0이 아니면, 즉 갓 시작한 task 가 아니면 빼준다.
 		dequeue_task(rq, p, 0);
-	if (running)
+	if (running) //NOTE soo 지금 돌고있는 프로세스라면, 현재의 스케줄러의 젤 뒤로 넘겨준다. NORMAL
 		p->sched_class->put_prev_task(rq, p);
 
 	p->sched_reset_on_fork = reset_on_fork;
@@ -4094,9 +4266,9 @@ recheck:
 	__setscheduler(rq, p, policy, param->sched_priority);
 
 	if (running)
-		p->sched_class->set_curr_task(rq);
+		p->sched_class->set_curr_task(rq);//TODO 알기
 	if (on_rq)
-		enqueue_task(rq, p, 0);
+		enqueue_task(rq, p, 0);//NOTE soo 호출되어야 함.
 
 	check_class_changed(rq, p, prev_class, oldprio);
 	task_rq_unlock(rq, p, &flags);
@@ -4106,6 +4278,7 @@ recheck:
 	return 0;
 }
 
+//NOTE soo thread 의 스케줄링 폴리시나 프라이오리티를 변경
 /**
  * sched_setscheduler - change the scheduling policy and/or RT priority of a thread.
  * @p: the task in question.
@@ -4121,6 +4294,7 @@ int sched_setscheduler(struct task_struct *p, int policy,
 }
 EXPORT_SYMBOL_GPL(sched_setscheduler);
 
+//NOTE soo context 권한을 체크하지 않음.
 /**
  * sched_setscheduler_nocheck - change the scheduling policy and/or RT priority of a thread from kernelspace.
  * @p: the task in question.
@@ -4886,6 +5060,7 @@ void do_set_cpus_allowed(struct task_struct *p, const struct cpumask *new_mask)
 	p->nr_cpus_allowed = cpumask_weight(new_mask);
 }
 
+//NOTE soo 로드발랜싱을 위한 Migration 함수들. cpu 간 task 이동
 /*
  * This is how migration works:
  *
@@ -7018,6 +7193,7 @@ LIST_HEAD(task_groups);
 
 DECLARE_PER_CPU(cpumask_var_t, load_balance_mask);
 
+//NOTE soo 스케줄러 init. wrr_rq 의 init 이 여기서 호출되어야 한다.
 void __init sched_init(void)
 {
 	int i, j;
@@ -7089,6 +7265,7 @@ void __init sched_init(void)
 		rq->calc_load_update = jiffies + LOAD_FREQ;
 		init_cfs_rq(&rq->cfs);
 		init_rt_rq(&rq->rt, rq);
+		init_wrr_rq(&rq->wrr, rq);
 #ifdef CONFIG_FAIR_GROUP_SCHED
 		root_task_group.shares = ROOT_TASK_GROUP_LOAD;
 		INIT_LIST_HEAD(&rq->leaf_cfs_rq_list);
@@ -7182,7 +7359,7 @@ void __init sched_init(void)
 	/*
 	 * During early bootup we pretend to be a normal task:
 	 */
-	current->sched_class = &fair_sched_class;
+	current->sched_class = &wrr_sched_class;//TODO soo!!!!!!!!!!!!!!!!!
 
 #ifdef CONFIG_SMP
 	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
@@ -7194,6 +7371,7 @@ void __init sched_init(void)
 	init_sched_fair_class();
 
 	scheduler_running = 1;
+	balance_timestamp = jiffies;
 }
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
@@ -7253,7 +7431,7 @@ static void normalize_task(struct rq *rq, struct task_struct *p)
 	on_rq = p->on_rq;
 	if (on_rq)
 		dequeue_task(rq, p, 0);
-	__setscheduler(rq, p, SCHED_NORMAL, 0);
+	__setscheduler(rq, p, SCHED_WRR, 0);//TODO soo!!!!!!!!!!!!!!!!
 	if (on_rq) {
 		enqueue_task(rq, p, 0);
 		resched_task(rq->curr);
