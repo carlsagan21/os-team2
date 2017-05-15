@@ -11,7 +11,7 @@
 #include "cpuacct.h"
 
 #define DEFAULT_WEIGHT 10
-#define TIME_SLICE (HZ / 20) //NOTE soo HZ == 200
+#define TIME_SLICE (HZ / 100) //NOTE soo HZ == 200
 
 extern __read_mostly int scheduler_running;
 
