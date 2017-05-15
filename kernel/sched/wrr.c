@@ -178,9 +178,9 @@ static void yield_task_wrr(struct rq *rq)
 //        struct task_struct *temp = rq->curr;
 //        dequeue_task_wrr(rq, temp, 0);
 //        enqueue_task_wrr(rq, temp, 0);
-	if (task_has_wrr_policy(rq->curr)) {
-		requeue_task_wrr(rq, rq->curr, 0);
-	}
+	// if (task_has_wrr_policy(rq->curr)) {
+	// 	requeue_task_wrr(rq, rq->curr, 0);
+	// }
 //        // TODO list_move_tail
 #ifdef CONFIG_SCHED_DEBUG
 	// printk(KERN_DEBUG "[soo] wrr_func yield_task_wrr");
@@ -331,40 +331,40 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 // 현재 pre_schedule에서는 오직 RT schedule class만이 구현되어있는데, 이는 Linux라는 OS의 특성이 realre_schedule 함수는
 // if(rq->rt.highest_prio.curr > prev->prio) pull_rt_task(rq); 구문을 통해 현재 프로세스의 priority를e 내 Real Time 프로세스 중 가장 높은 priority보다 낮을 경우 RT task를 가져온다.
 // 없으면 호출 안됨. 필요없을듯.
-// static void pre_schedule_wrr(struct rq *rq, struct task_struct *prev)
-// {
-//     printk(KERN_DEBUG "[soo] wrr_func pre_schedule_wrr");
-// }
+static void pre_schedule_wrr(struct rq *rq, struct task_struct *prev)
+{
+    // printk(KERN_DEBUG "[soo] wrr_func pre_schedule_wrr");
+}
 
 //NOTE soo
 // pre_schedule 과 마찬가지. rt 전용이고 안불러도 될듯.
-// static void post_schedule_wrr(struct rq *rq)
-// {
-//     printk(KERN_DEBUG "[soo] wrr_func post_schedule_wrr");
-// }
+static void post_schedule_wrr(struct rq *rq)
+{
+    // printk(KERN_DEBUG "[soo] wrr_func post_schedule_wrr");
+}
 
 //NOTE fair 전용. min_vruntime 을 업데이트 해주는거 같음.필요없겠지?
-// static void task_waking_wrr(struct task_struct *p)
-// {
-//     printk(KERN_DEBUG "[soo] wrr_func task_waking_wrr");
-// }
+static void task_waking_wrr(struct task_struct *p)
+{
+    // printk(KERN_DEBUG "[soo] wrr_func task_waking_wrr");
+}
 
 //NOTE task_woken rt 에서 push_rt_tasks 를 함.
 /*rt
  * If we are not running and we are not going to reschedule soon, we should
  * try to push tasks away now
  */
-// static void task_woken_wrr(struct rq *rq, struct task_struct *p)
-// {
-//     printk(KERN_DEBUG "[soo] wrr_func task_woken_wrr");
-// }
+static void task_woken_wrr(struct rq *rq, struct task_struct *p)
+{
+    // printk(KERN_DEBUG "[soo] wrr_func task_woken_wrr");
+}
 
 //NOTE rt에서만 쓰고... 별 관련없어보임.
-// static void set_cpus_allowed_wrr(struct task_struct *p,
-//                             const struct cpumask *new_mask)
-// {
-//     printk(KERN_DEBUG "[soo] wrr_func set_cpus_allowed_wrr");
-// }
+static void set_cpus_allowed_wrr(struct task_struct *p,
+                            const struct cpumask *new_mask)
+{
+    // printk(KERN_DEBUG "[soo] wrr_func set_cpus_allowed_wrr");
+}
 
 /*rt Assumes rq->lock is held */
 static void rq_online_wrr(struct rq *rq)
@@ -464,13 +464,13 @@ static void switched_to_wrr(struct rq *rq, struct task_struct *p)
  * Priority of the task has changed. Check to see if we preempt
  * the current task.
  */
-// static void
-// prio_changed_wrr(struct rq *rq, struct task_struct *p, int oldprio)
-// {
-// #ifdef CONFIG_SCHED_DEBUG
-// 	// printk(KERN_DEBUG "[soo] wrr_func prio_changed_wrr: %d", p->pid);
-// #endif
-// }
+static void
+prio_changed_wrr(struct rq *rq, struct task_struct *p, int oldprio)
+{
+#ifdef CONFIG_SCHED_DEBUG
+	// printk(KERN_DEBUG "[soo] wrr_func prio_changed_wrr: %d", p->pid);
+#endif
+}
 
 static unsigned int get_rr_interval_wrr(struct rq *rq, struct task_struct *task)
 {
@@ -519,20 +519,20 @@ const struct sched_class wrr_sched_class = {
 
 	//      void (*pre_schedule) (struct rq *this_rq, struct task_struct *task);
 	// rt only
-	// .pre_schedule                = pre_schedule_wrr,
+	.pre_schedule                = pre_schedule_wrr,
 	//      void (*post_schedule) (struct rq *this_rq);
-	// .post_schedule               = post_schedule_wrr,
+	.post_schedule               = post_schedule_wrr,
 	//      void (*task_waking) (struct task_struct *task);
 	// fair only
-	// .task_waking = task_waking_wrr,
+	.task_waking = task_waking_wrr,
 	//      void (*task_woken) (struct rq *this_rq, struct task_struct *task);
 	// rt only
-	// .task_woken          = task_woken_wrr,
+	.task_woken          = task_woken_wrr,
 
 	//      void (*set_cpus_allowed)(struct task_struct *p,
 	//                               const struct cpumask *newmask);
 	// rt only
-	// .set_cpus_allowed       = set_cpus_allowed_wrr,
+	.set_cpus_allowed       = set_cpus_allowed_wrr,
 
 	//      void (*rq_online)(struct rq *rq);
 	.rq_online              = rq_online_wrr,
@@ -555,7 +555,7 @@ const struct sched_class wrr_sched_class = {
 	.switched_to            = switched_to_wrr,
 	//      void (*prio_changed) (struct rq *this_rq, struct task_struct *task,
 	//                           int oldprio);
-	// .prio_changed           = prio_changed_wrr,
+	.prio_changed           = prio_changed_wrr,
 
 	//      unsigned int (*get_rr_interval) (struct rq *rq,
 	//                                       struct task_struct *task);
