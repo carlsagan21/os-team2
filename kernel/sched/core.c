@@ -98,39 +98,39 @@
 int sys_sched_setweight(pid_t pid, int weight)
 {
 	printk(KERN_DEBUG "[soo] sys_sched_setweight");
-	//  struct task_struct *p;
-	//  int delta;
-	//  struct rq *rq;
-	//  kuid_t root_uid = KUIDT_INIT(0);
-	 //
-	//  if (weight < 1 || weight > 20) {
-	//          return -EINVAL;
-	//  }
-	 //
-	//  if (pid == 0) {
-	//          /* set calling process weight */
-	//          p = current;
-	//  } else {
-	//          if (!uid_eq(current->cred->euid, root_uid)) {
-	//                  return -EINVAL;
-	//          }
-	//          p = pid_task(find_vpid(pid), PIDTYPE_PID);
-	//          if (p == NULL) {
-	//                  return -EINVAL;
-	//          }
-	//  }
-	 //
-	//  if (p->policy != SCHED_WRR)
-	//          return -EINVAL;
-	 //
-	//  delta = p->wrr.weight - weight;
-	//  if (!uid_eq(current->cred->euid, root_uid) && delta < 0) {
-	//          return -EINVAL;
-	//  }
-	 //
-	//  p->wrr.weight = weight;
-	//  rq = cpu_rq(task_cpu(p));
-	//  rq->wrr.total_weight -= delta;
+	struct task_struct *p;
+	int delta;
+	struct rq *rq;
+	kuid_t root_uid = KUIDT_INIT(0);
+
+	if (weight < 1 || weight > 20) {
+		return -EINVAL;
+	}
+
+	if (pid == 0) {
+		/* set calling process weight */
+		p = current;
+	} else {
+		if (!uid_eq(current->cred->euid, root_uid)) {
+			return -EINVAL;
+		}
+		p = pid_task(find_vpid(pid), PIDTYPE_PID);
+		if (p == NULL) {
+			return -EINVAL;
+		}
+	}
+
+	if (p->policy != SCHED_WRR)
+	return -EINVAL;
+
+	delta = p->wrr_se.weight - weight;
+	if (!uid_eq(current->cred->euid, root_uid) && delta < 0) {
+		return -EINVAL;
+	}
+
+	p->wrr_se.weight = weight;
+	rq = cpu_rq(task_cpu(p));
+	rq->wrr.total_weight -= delta;
 
 	return 0;
 }
@@ -142,21 +142,21 @@ int sys_sched_setweight(pid_t pid, int weight)
 int sys_sched_getweight(pid_t pid)
 {
 	printk(KERN_DEBUG "[soo] sys_sched_getweight");
-	//  struct task_struct *p;
-	//
-	//  if (pid == 0) {
-	//          p = current;
-	//  } else {
-	//          p = pid_task(find_vpid(pid), PIDTYPE_PID);
-	//          if (p == NULL) {
-	//                  return -EINVAL;
-	//          }
-	//  }
-	//  if (p->policy != SCHED_WRR) {
-	//          return -EINVAL;
-	//  }
+	struct task_struct *p;
 
-	return 0;
+	if (pid == 0) {
+		p = current;
+	} else {
+		p = pid_task(find_vpid(pid), PIDTYPE_PID);
+		if (p == NULL) {
+			return -EINVAL;
+		}
+	}
+	if (p->policy != SCHED_WRR) {
+		return -EINVAL;
+	}
+
+	return p->wrr_se.weight;
 }
 
 #define LB_INTERVAL (2 * HZ)
@@ -178,78 +178,78 @@ static int is_migratable(struct rq *rq, struct task_struct *p, int dest_cpu)
 /*load_balance*/
 static void load_balance_wrr(struct rq *rq)
 {
-    //    int cpu;
-    //    unsigned int max_weight = rq->wrr.total_weight;
-    //    unsigned int min_weight = rq->wrr.total_weight;
-    //    struct rq *min_rq = rq;
-    //    struct rq *max_rq = rq;
-    //    struct rq *temp;
-    //    struct wrr_rq *wrr;
-    //    struct list_head *list;
-    //    struct sched_wrr_entity *se, *n;
-    //    struct task_struct *mp; /* migrating task */
-    //    unsigned int mweight;
-    //    struct task_struct *p;
-    //    unsigned long now;
-		 //
-    //    spin_lock(&balance_lock);
-		 //
-    //    now = jiffies;
-    //    if (time_before(now, balance_timestamp + LB_INTERVAL)) {
-    //            spin_unlock(&balance_lock);
-    //            return;
-    //    }
-		 //
-    //    balance_timestamp = now;
-		 //
-    //    spin_unlock(&balance_lock);
-		 //
-    //    /*find min, max rq*/
-    //    rcu_read_lock();
-    //    for_each_online_cpu(cpu) {
-    //            temp = cpu_rq(cpu);
-    //            wrr = &temp->wrr;
-		 //
-    //            if (wrr->total_weight < min_weight) {
-    //                    min_rq = temp;
-    //                    min_weight = wrr->total_weight;
-    //            }
-    //            if (wrr->total_weight > max_weight) {
-    //                    max_rq = temp;
-    //                    max_weight = wrr->total_weight;
-    //            }
-    //    }
-    //    rcu_read_unlock();
-		 //
-    //    if (min_rq == max_rq)
-    //            return;
-		 //
-    //    double_rq_lock(max_rq, min_rq);
-		 //
-    //    mweight = 0;
-    //    mp = NULL;
-    //    list = &max_rq->wrr.run_queue;
-		 //
-    //  list_for_each_entry_safe(se, n, list, run_list) {
-    //            p = container_of(se, struct task_struct, wrr);
-    //          if (is_migratable(max_rq, p, min_rq->cpu) &&
-    //                            se->weight > mweight &&
-    //                            min_weight + se->weight < max_weight - se->weight) {
-    //                    mp = p;
-    //                    mweight = se->weight;
-    //            }
-    //    }
-		 //
-    //    if (mp == NULL) {
-    //            double_rq_unlock(max_rq, min_rq);
-    //            return;
-    //    }
-		 //
-    //    deactivate_task(max_rq, mp, 0);
-    //    set_task_cpu(mp, min_rq->cpu);
-    //    activate_task(min_rq, mp, 0);
-		 //
-    //    double_rq_unlock(max_rq, min_rq);
+//    int cpu;
+//    unsigned int max_weight = rq->wrr.total_weight;
+//    unsigned int min_weight = rq->wrr.total_weight;
+//    struct rq *min_rq = rq;
+//    struct rq *max_rq = rq;
+//    struct rq *temp;
+//    struct wrr_rq *wrr;
+//    struct list_head *list;
+//    struct sched_wrr_entity *se, *n;
+//    struct task_struct *mp; /* migrating task */
+//    unsigned int mweight;
+//    struct task_struct *p;
+//    unsigned long now;
+//
+//    spin_lock(&balance_lock);
+//
+//    now = jiffies;
+//    if (time_before(now, balance_timestamp + LB_INTERVAL)) {
+//            spin_unlock(&balance_lock);
+//            return;
+//    }
+//
+//    balance_timestamp = now;
+//
+//    spin_unlock(&balance_lock);
+//
+//    /*find min, max rq*/
+//    rcu_read_lock();
+//    for_each_online_cpu(cpu) {
+//            temp = cpu_rq(cpu);
+//            wrr = &temp->wrr;
+//
+//            if (wrr->total_weight < min_weight) {
+//                    min_rq = temp;
+//                    min_weight = wrr->total_weight;
+//            }
+//            if (wrr->total_weight > max_weight) {
+//                    max_rq = temp;
+//                    max_weight = wrr->total_weight;
+//            }
+//    }
+//    rcu_read_unlock();
+//
+//    if (min_rq == max_rq)
+//            return;
+//
+//    double_rq_lock(max_rq, min_rq);
+//
+//    mweight = 0;
+//    mp = NULL;
+//    list = &max_rq->wrr.run_queue;
+//
+//  list_for_each_entry_safe(se, n, list, run_list) {
+//            p = container_of(se, struct task_struct, wrr);
+//          if (is_migratable(max_rq, p, min_rq->cpu) &&
+//                            se->weight > mweight &&
+//                            min_weight + se->weight < max_weight - se->weight) {
+//                    mp = p;
+//                    mweight = se->weight;
+//            }
+//    }
+//
+//    if (mp == NULL) {
+//            double_rq_unlock(max_rq, min_rq);
+//            return;
+//    }
+//
+//    deactivate_task(max_rq, mp, 0);
+//    set_task_cpu(mp, min_rq->cpu);
+//    activate_task(min_rq, mp, 0);
+//
+//    double_rq_unlock(max_rq, min_rq);
 }
 
 
@@ -1922,7 +1922,7 @@ void sched_fork(struct task_struct *p)
 			p->rt_priority = 0;
 		}
 		else if (task_has_rt_policy(p)) {
-			p->policy = SCHED_NORMAL;//TODO soo WRR 로 해줘야.
+			p->policy = SCHED_NORMAL;
 			p->static_prio = NICE_TO_PRIO(0);
 			p->rt_priority = 0;
 		} else if (PRIO_TO_NICE(p->static_prio) < 0)
@@ -7356,7 +7356,7 @@ void __init sched_init(void)
 	/*
 	 * During early bootup we pretend to be a normal task:
 	 */
-	current->sched_class = &fair_sched_class;//TODO soo!!!!!!!!!!!!!!!!!
+	current->sched_class = &wrr_sched_class;//TODO soo!!!!!!!!!!!!!!!!!
 
 #ifdef CONFIG_SMP
 	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
@@ -7428,7 +7428,7 @@ static void normalize_task(struct rq *rq, struct task_struct *p)
 	on_rq = p->on_rq;
 	if (on_rq)
 		dequeue_task(rq, p, 0);
-	__setscheduler(rq, p, SCHED_NORMAL, 0);//TODO soo!!!!!!!!!!!!!!!!
+	__setscheduler(rq, p, SCHED_WRR, 0);//TODO soo!!!!!!!!!!!!!!!!
 	if (on_rq) {
 		enqueue_task(rq, p, 0);
 		resched_task(rq->curr);
