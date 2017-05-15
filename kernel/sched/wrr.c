@@ -79,8 +79,68 @@ static void requeue_task_wrr(struct rq *rq, struct task_struct *p, int head)
 	list_move_tail(&wrr_se->run_list, &wrr_rq->run_list);
 }
 
-static void update_curr_wrr(struct rq *rq)
-{
+static void update_curr_wrr(struct rq *rq){
+	struct task_struct* curr;
+	struct wrr_rq* wrr_rq;
+
+	wrr_rq = &rq->wrr;
+
+	raw_spin_lock(&wrr_rq->lock);
+	struct sched_wrr_entity *wrr_se = list_first_entry_or_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
+
+	if(wrr_se != NULL){
+		*curr = wrr_se_task_of(wrr_se);
+
+		unsigned int curr_task_prev_time_slice = &wrr_se->time_slice;
+		unsigned int curr_task_updated_time_slice = curr_task_prev_time_slice - 1;
+
+		if(curr_task_updated_time_slice == 0){
+			struct list_head* temp = &wrr_se->run_list;
+			if(temp->next != &wrr_rq->run_list)
+				resched_task(curr);
+			&wrr_se->time_slice = &wrr_se->weight * TIME_SLICE;
+		}
+
+	}
+
+	raw_spin_unlock(&wrr_rq->lock);
+	return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// static void old_update_curr_wrr(struct rq *rq)
+// {
        // struct task_struct *curr;
        // struct sched_wrr_entity *wrr_se;
   // struct list_head *rq_list;
@@ -118,7 +178,7 @@ static void update_curr_wrr(struct rq *rq)
        //      se->time_slice = se->weight * WRR_TIMESLICE; /* < Else, refill the current task's time_slice */
        //
        // // raw_spin_unlock(&wrr_rq->lock);
-}
+// }
 static void update_curr(struct rq *rq)
 {
       //  struct task_struct *curr;
@@ -170,8 +230,6 @@ enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	raw_spin_lock(&wrr_rq->lock);
 	struct sched_wrr_entity *wrr_se = &p->wrr_se;
 
-	//TODO flag 처리
-
 	enqueue_wrr_entity(wrr_rq, wrr_se, 0);
 
 	inc_nr_running(rq);
@@ -194,10 +252,6 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	struct wrr_rq *wrr_rq = wrr_rq_of_task(p);
 	raw_spin_lock(&wrr_rq->lock);
 	struct sched_wrr_entity *wrr_se = &p->wrr_se;
-	/*
-	* Update run-time statistics of the 'current'.
-	*/
-	// update_curr(wrr_rq);
 
 	list_del_init(&wrr_se->run_list);
 
@@ -248,14 +302,29 @@ static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int fla
 #endif
 }
 
-//TODO enqueue 이후에 불려서 고름. curr 세팅 해야.
+
 static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
-	//soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
-	struct sched_wrr_entity *wrr_se;
-	struct task_struct *p = NULL;
-	struct wrr_rq *wrr_rq;
+	// //soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
+	// struct sched_wrr_entity *wrr_se;
+	// struct task_struct *p = NULL;
+      //  struct wrr_rq *wrr_rq;
+			//
+      //  wrr_rq = &rq->wrr;
+			//
+      //  if (!wrr_rq->wrr_nr_running)
+      //          return NULL;
+			//
+      //  //soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
+      //  wrr_se = pick_next_wrr_entity(wrr_rq);
+			//
+      //  p = wrr_se_task_of(wrr_se);
+      //  p->wrr_se.time_slice = p->wrr_se.weight * TIME_SLICE;
+      // //  p->wrr_se.exec_start = rq->clock_task;
+			// wrr_rq->curr = p;
 
+	struct wrr_rq *wrr_rq;
+	struct task_struct *p = NULL;
 	wrr_rq = &rq->wrr;
 
 	if (!wrr_rq->wrr_nr_running)
@@ -406,7 +475,7 @@ static void set_curr_task_wrr(struct rq *rq)
  */
 static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
 {
-	// update_curr_wrr(rq);
+  update_curr_wrr(rq);
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr: %d", curr->pid);
 #endif
