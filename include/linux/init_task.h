@@ -155,6 +155,10 @@ extern struct task_group root_task_group;
 
 #define INIT_TASK_COMM "swapper"
 
+//NOTE soo SCHED_NORMAL->SCHED_WRR
+// type sched_wrr_entity .wrr = {
+//   weight = DEFAULT_WEIGHT;
+// }
 /*
  *  INIT_TASK is used to set up the first task table, touch at
  * your own risk!. Base=0, limit=0x1fffff (=2MB)

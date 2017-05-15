@@ -693,6 +693,12 @@ __SYSCALL(__NR_kcmp, sys_kcmp)
 #define __NR_finit_module 273
 __SYSCALL(__NR_finit_module, sys_finit_module)
 
+#define __NR_sched_setweight 384
+__SYSCALL(__NR_sched_setweight, sys_sched_setweight)
+
+#define __NR_sched_getweight 385
+__SYSCALL(__NR_sched_getweight, sys_sched_getweight)
+
 #undef __NR_syscalls
 #define __NR_syscalls 274
 
