@@ -217,10 +217,10 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
 	//soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
 	wrr_se = pick_next_wrr_entity(wrr_rq);
 
-	p = wrr_se_task_of(wrr_se);
-	p->wrr_se.time_slice = p->wrr_se.weight * TIME_SLICE;
-	//  p->wrr_se.exec_start = rq->clock_task;
-	// wrr_rq->curr = p;
+	if (wrr_se != NULL) {
+		p = wrr_se_task_of(wrr_se);
+		p->wrr_se.time_slice = p->wrr_se.weight * TIME_SLICE;
+	}
 
 #ifdef CONFIG_SCHED_DEBUG
 	// printk(KERN_DEBUG "[soo] wrr_func pick_next_task_wrr2: %d", wrr_se_task_of(wrr_se)->pid);
