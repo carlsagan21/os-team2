@@ -97,7 +97,7 @@
  * If 'pid' is 0, set the weight for the calling process
  * System call number 384
  */
-// #define WRR_TIMESLICE (HZ / 100)
+#define WRR_TIMESLICE (HZ / 100)
 
 int sys_sched_setweight(pid_t pid, int weight)
 {
@@ -161,6 +161,102 @@ int sys_sched_getweight(pid_t pid)
 	//  }
 
 	 return 0;
+}
+
+/*set_weight, get_weight system calls*/
+/*load_balance*/
+
+static int is_migratable(struct rq *rq, struct task_struct *p, int dest_cpu)
+{
+       if (rq->curr == p)
+               return 0;
+       if (!cpumask_test_cpu(dest_cpu, tsk_cpus_allowed(p)))
+               return 0;
+
+       return 1;
+}
+
+
+#define LB_INTERVAL (2 * HZ)
+DEFINE_SPINLOCK(balance_lock);
+unsigned long balance_timestamp;
+
+/*load_balance*/
+
+static void load_balance_wrr(struct rq *rq)
+{
+       int cpu;
+       unsigned int max_weight = rq->wrr.total_weight;
+       unsigned int min_weight = rq->wrr.total_weight;
+       struct rq *min_rq = rq;
+       struct rq *max_rq = rq;
+       struct rq *temp;
+       struct wrr_rq *wrr;
+       struct list_head *list;
+       struct sched_wrr_entity *se, *n;
+       struct task_struct *mp; /* migrating task */
+       unsigned int mweight;
+       struct task_struct *p;
+       unsigned long now;
+
+       spin_lock(&balance_lock);
+
+       now = jiffies;
+       if (time_before(now, balance_timestamp + LB_INTERVAL)) {
+               spin_unlock(&balance_lock);
+               return;
+       }
+
+       balance_timestamp = now;
+
+       spin_unlock(&balance_lock);
+
+       /*find min, max rq*/
+       rcu_read_lock();
+       for_each_online_cpu(cpu) {
+               temp = cpu_rq(cpu);
+               wrr = &temp->wrr;
+
+               if (wrr->total_weight < min_weight) {
+                       min_rq = temp;
+                       min_weight = wrr->total_weight;
+               }
+               if (wrr->total_weight > max_weight) {
+                       max_rq = temp;
+                       max_weight = wrr->total_weight;
+               }
+       }
+       rcu_read_unlock();
+
+       if (min_rq == max_rq)
+               return;
+
+       double_rq_lock(max_rq, min_rq);
+
+       mweight = 0;
+       mp = NULL;
+       list = &max_rq->wrr.run_queue;
+
+     list_for_each_entry_safe(se, n, list, run_list) {
+               p = container_of(se, struct task_struct, wrr);
+             if (is_migratable(max_rq, p, min_rq->cpu) &&
+                               se->weight > mweight &&
+                               min_weight + se->weight < max_weight - se->weight) {
+                       mp = p;
+                       mweight = se->weight;
+               }
+       }
+
+       if (mp == NULL) {
+               double_rq_unlock(max_rq, min_rq);
+               return;
+       }
+
+       deactivate_task(max_rq, mp, 0);
+       set_task_cpu(mp, min_rq->cpu);
+       activate_task(min_rq, mp, 0);
+
+       double_rq_unlock(max_rq, min_rq);
 }
 
 
@@ -823,6 +919,7 @@ static void set_load_weight(struct task_struct *p)
 {
 	int prio = p->static_prio - MAX_RT_PRIO;
 	struct load_weight *load = &p->se.load;
+	struct sched_wrr_entity *se = &p->wrr;
 
 	/*
 	 * SCHED_IDLE tasks get minimal weight:
@@ -832,6 +929,11 @@ static void set_load_weight(struct task_struct *p)
 		load->inv_weight = WMULT_IDLEPRIO;
 		return;
 	}
+
+       if (p->policy == SCHED_WRR) {
+               se->weight = 10;
+               se->time_slice = 10 * WRR_TIMESLICE;
+       }
 
 	load->weight = scale_load(prio_to_weight[prio]);
 	load->inv_weight = prio_to_wmult[prio];
@@ -1774,7 +1876,9 @@ void sched_fork(struct task_struct *p)
 	 * Revert to default priority/policy on fork if requested.
 	 */
 	if (unlikely(p->sched_reset_on_fork)) {
-		if (task_has_rt_policy(p)) {
+     if (p->policy == SCHED_WRR) {
+       }
+     else if (task_has_rt_policy(p)) {
 			p->policy = SCHED_NORMAL;
 			p->static_prio = NICE_TO_PRIO(0);
 			p->rt_priority = 0;
@@ -1792,8 +1896,8 @@ void sched_fork(struct task_struct *p)
 	}
 
 	if (!rt_prio(p->prio))
-		p->sched_class = &fair_sched_class;
-
+		p->sched_class = &wrr_sched_class;
+else
 	if (p->sched_class->task_fork)
 		p->sched_class->task_fork(p);
 
@@ -2842,6 +2946,7 @@ void scheduler_tick(void)
 #ifdef CONFIG_SMP
 	rq->idle_balance = idle_cpu(cpu);
 	trigger_load_balance(rq, cpu);
+	load_balance_wrr(rq);
 #endif
 	rq_last_tick_reset(rq);
 }
@@ -3731,10 +3836,12 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	if (running)
 		p->sched_class->put_prev_task(rq, p);
 
-	if (rt_prio(prio))
-		p->sched_class = &rt_sched_class;
-	else
-		p->sched_class = &fair_sched_class;
+   if (p->policy != SCHED_WRR) {
+           if (rt_prio(prio))
+                   p->sched_class = &rt_sched_class;
+           else
+                   p->sched_class = &fair_sched_class;
+   }
 
 	p->prio = prio;
 
@@ -3925,7 +4032,9 @@ __setscheduler(struct rq *rq, struct task_struct *p, int policy, int prio)
 	p->normal_prio = normal_prio(p);
 	/* we are holding p->pi_lock already */
 	p->prio = rt_mutex_getprio(p);
-	if (rt_prio(p->prio)) {
+	if (policy == SCHED_WRR) {
+     p->sched_class = &wrr_sched_class;
+ } else if (rt_prio(p->prio)) {
 		p->sched_class = &rt_sched_class;
 #ifdef CONFIG_SCHED_HMP
 		if (cpumask_equal(&p->cpus_allowed, cpu_all_mask))
@@ -3975,7 +4084,7 @@ recheck:
 
 		if (policy != SCHED_FIFO && policy != SCHED_RR &&
 				policy != SCHED_NORMAL && policy != SCHED_BATCH &&
-				policy != SCHED_IDLE)
+				policy != SCHED_IDLE && policy != SCHED_WRR)
 			return -EINVAL;
 	}
 
@@ -7089,6 +7198,7 @@ void __init sched_init(void)
 		rq->calc_load_update = jiffies + LOAD_FREQ;
 		init_cfs_rq(&rq->cfs);
 		init_rt_rq(&rq->rt, rq);
+		init_wrr_rq(&rq->wrr, rq);
 #ifdef CONFIG_FAIR_GROUP_SCHED
 		root_task_group.shares = ROOT_TASK_GROUP_LOAD;
 		INIT_LIST_HEAD(&rq->leaf_cfs_rq_list);
@@ -7182,7 +7292,7 @@ void __init sched_init(void)
 	/*
 	 * During early bootup we pretend to be a normal task:
 	 */
-	current->sched_class = &fair_sched_class;
+	current->sched_class = &wrr_sched_class;
 
 #ifdef CONFIG_SMP
 	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
@@ -7194,6 +7304,7 @@ void __init sched_init(void)
 	init_sched_fair_class();
 
 	scheduler_running = 1;
+	balance_timestamp = jiffies;
 }
 
 #ifdef CONFIG_DEBUG_ATOMIC_SLEEP
@@ -7253,7 +7364,7 @@ static void normalize_task(struct rq *rq, struct task_struct *p)
 	on_rq = p->on_rq;
 	if (on_rq)
 		dequeue_task(rq, p, 0);
-	__setscheduler(rq, p, SCHED_NORMAL, 0);
+	__setscheduler(rq, p, SCHED_WRR, 0);
 	if (on_rq) {
 		enqueue_task(rq, p, 0);
 		resched_task(rq->curr);
