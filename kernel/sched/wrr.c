@@ -79,8 +79,68 @@ static void requeue_task_wrr(struct rq *rq, struct task_struct *p, int head)
 	list_move_tail(&wrr_se->run_list, &wrr_rq->run_list);
 }
 
-static void update_curr_wrr(struct rq *rq)
-{
+static void update_curr_wrr(struct rq *rq){
+	struct task_struct* curr;
+	struct wrr_rq* wrr_rq;
+
+	wrr_rq = &rq->wrr;
+
+	raw_spin_lock(&wrr_rq->lock);
+	struct sched_wrr_entity *wrr_se = list_first_entry_or_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
+
+	if(wrr_se != NULL){
+		*curr = wrr_se_task_of(wrr_se);
+
+		unsigned int curr_task_prev_time_slice = &wrr_se->time_slice;
+		unsigned int curr_task_updated_time_slice = curr_task_prev_time_slice - 1;
+
+		if(curr_task_updated_time_slice == 0){
+			struct list_head* temp = &wrr_se->run_list;
+			if(temp->next != &wrr_rq->run_list)
+				resched_task(curr);
+			&wrr_se->time_slice = &wrr_se->weight * TIME_SLICE;
+		}
+
+	}
+
+	raw_spin_unlock(&wrr_rq->lock);
+	return;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// static void old_update_curr_wrr(struct rq *rq)
+// {
        // struct task_struct *curr;
        // struct sched_wrr_entity *wrr_se;
   // struct list_head *rq_list;
@@ -118,7 +178,7 @@ static void update_curr_wrr(struct rq *rq)
        //      se->time_slice = se->weight * WRR_TIMESLICE; /* < Else, refill the current task's time_slice */
        //
        // // raw_spin_unlock(&wrr_rq->lock);
-}
+// }
 static void update_curr(struct rq *rq)
 {
       //  struct task_struct *curr;
@@ -415,7 +475,7 @@ static void set_curr_task_wrr(struct rq *rq)
  */
 static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
 {
-	// update_curr_wrr(rq);
+  update_curr_wrr(rq);
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr: %d", curr->pid);
 #endif
