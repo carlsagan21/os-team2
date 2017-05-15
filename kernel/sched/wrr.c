@@ -242,12 +242,19 @@ static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int fla
 #endif
 }
 
-//TODO enqueue 이후에 불려서 고름. curr 세팅 해야.
+
 static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
-	//soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
-	struct sched_wrr_entity *wrr_se;
+	struct wrr_rq *wrr_rq;
 	struct task_struct *p = NULL;
+	wrr_rq = &rq->wrr;
+	// if(!wrr_rq->wrr_nr_running)
+		// return NULL;
+	struct sched_wrr_entity *wrr_se = list_first_entry_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
+	p = wrr_se_task_of(wrr_se);
+	//soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
+	// struct sched_wrr_entity *wrr_se;
+	// struct task_struct *p = NULL;
       //  struct wrr_rq *wrr_rq;
 			//
       //  wrr_rq = &rq->wrr;
