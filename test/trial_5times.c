@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <linux/types.h>
 
-#define SCHED_SETWEIGHT 384
-#define SCHED_GETWEIGHT 385
+#define __NR_sched_setweight 380
+#define __NR_sched_getweight 381
 
 int main(int argc, char* argv[])
 {
@@ -12,10 +12,17 @@ int main(int argc, char* argv[])
 	pid_t id = 0;
 	clock_t start, end;
 
-	for (weight = 1; weight < 21; weight++) {
-		printf("set weight %d: %d\t", weight, syscall(SCHED_SETWEIGHT, id, weight));
+	t = atoi(argv[1]);
+	g = atoi(argv[2]);
+
+	printf("start policy: %d \n", sched_getscheduler(0));
+
+	for (weight = 20; weight > 0; weight -= g) {
+		printf("getweight: %u\n", syscall(__NR_sched_getweight, 0));
+		printf("set weight %d: %d\n", weight, syscall(__NR_sched_setweight, id, weight));
+		printf("getweight: %u\n", syscall(__NR_sched_getweight, 0));
 		sum = 0;
-		for (j = 0; j < 5; j++) {
+		for (j = 0; j < t; j++) {
 			t = 1874919423;
 			start = clock();
 			while(t != 1){
@@ -31,8 +38,7 @@ int main(int argc, char* argv[])
 			printf("%.7f\t", time);
 			sum += time;
 		}
-		printf("avg: %.7f\n", sum/5);
+		printf("avg: %.7f\n", sum/t);
 	}
 	return 0;
 }
-

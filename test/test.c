@@ -6,10 +6,11 @@
 #define SET_SCHEDULER 156
 #define GET_SCHEDULER 157
 #define SCHED_WRR 6
-#define SCHED_NORMAL 0 
+#define SCHED_NORMAL 0
 
 int main(int argc, char* argv[])
 {
+	printf("start!: %d \n", sched_getscheduler(0));
 	fork();
 	fork();
 	fork();
@@ -20,4 +21,3 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
-
