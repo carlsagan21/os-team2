@@ -159,9 +159,12 @@ int sys_sched_getweight(pid_t pid)
 	return 0;
 }
 
+#define LB_INTERVAL (2 * HZ)
+DEFINE_SPINLOCK(balance_lock);
+unsigned long balance_timestamp;
+
 /*set_weight, get_weight system calls*/
 /*load_balance*/
-
 static int is_migratable(struct rq *rq, struct task_struct *p, int dest_cpu)
 {
 	if (rq->curr == p)
@@ -172,13 +175,7 @@ static int is_migratable(struct rq *rq, struct task_struct *p, int dest_cpu)
 	return 1;
 }
 
-
-#define LB_INTERVAL (2 * HZ)
-DEFINE_SPINLOCK(balance_lock);
-unsigned long balance_timestamp;
-
 /*load_balance*/
-
 static void load_balance_wrr(struct rq *rq)
 {
     //    int cpu;
@@ -1942,9 +1939,9 @@ void sched_fork(struct task_struct *p)
 	}
 
  // TODO soo implement!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-	if (task_has_wrr_policy(p))
-		p->sched_class = &wrr_sched_class;
-else
+// 	if (task_has_wrr_policy(p))
+// 		p->sched_class = &wrr_sched_class;
+// else
 	if (!rt_prio(p->prio))
 		p->sched_class = &wrr_sched_class; //TODO soo 지금은 fort 한 것이 wrr 로는 못됨.
 		// TODO woong : Need to intialize sched_class to wrr_sched_class if necessary
@@ -4266,7 +4263,7 @@ recheck:
 	__setscheduler(rq, p, policy, param->sched_priority);
 
 	if (running)
-		p->sched_class->set_curr_task(rq);//TODO 알기
+		p->sched_class->set_curr_task(rq);
 	if (on_rq)
 		enqueue_task(rq, p, 0);//NOTE soo 호출되어야 함.
 
@@ -7359,7 +7356,7 @@ void __init sched_init(void)
 	/*
 	 * During early bootup we pretend to be a normal task:
 	 */
-	current->sched_class = &wrr_sched_class;//TODO soo!!!!!!!!!!!!!!!!!
+	current->sched_class = &fair_sched_class;//TODO soo!!!!!!!!!!!!!!!!!
 
 #ifdef CONFIG_SMP
 	zalloc_cpumask_var(&sched_domains_tmpmask, GFP_NOWAIT);
@@ -7431,7 +7428,7 @@ static void normalize_task(struct rq *rq, struct task_struct *p)
 	on_rq = p->on_rq;
 	if (on_rq)
 		dequeue_task(rq, p, 0);
-	__setscheduler(rq, p, SCHED_WRR, 0);//TODO soo!!!!!!!!!!!!!!!!
+	__setscheduler(rq, p, SCHED_NORMAL, 0);//TODO soo!!!!!!!!!!!!!!!!
 	if (on_rq) {
 		enqueue_task(rq, p, 0);
 		resched_task(rq->curr);
