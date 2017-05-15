@@ -1,0 +1,8 @@
+#!/bin/sh
+
+if [ $# -eq 0 ]
+then
+  build && flash && console
+else
+  build && arm-linux-gnueabi-gcc -I./include test/$1.c -o test/$1 && flash && console
+fi
