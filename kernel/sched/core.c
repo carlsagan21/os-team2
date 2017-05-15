@@ -102,41 +102,41 @@
 int sys_sched_setweight(pid_t pid, int weight)
 {
 	printk(KERN_DEBUG "[soo] sys_sched_setweight");
-      //  struct task_struct *p;
-      //  int delta;
-      //  struct rq *rq;
-      //  kuid_t root_uid = KUIDT_INIT(0);
-			 //
-      //  if (weight < 1 || weight > 20) {
-      //          return -EINVAL;
-      //  }
-			 //
-      //  if (pid == 0) {
-      //          /* set calling process weight */
-      //          p = current;
-      //  } else {
-      //          if (!uid_eq(current->cred->euid, root_uid)) {
-      //                  return -EINVAL;
-      //          }
-      //          p = pid_task(find_vpid(pid), PIDTYPE_PID);
-      //          if (p == NULL) {
-      //                  return -EINVAL;
-      //          }
-      //  }
-			 //
-      //  if (p->policy != SCHED_WRR)
-      //          return -EINVAL;
-			 //
-      //  delta = p->wrr.weight - weight;
-      //  if (!uid_eq(current->cred->euid, root_uid) && delta < 0) {
-      //          return -EINVAL;
-      //  }
-			 //
-      //  p->wrr.weight = weight;
-      //  rq = cpu_rq(task_cpu(p));
-      //  rq->wrr.total_weight -= delta;
+	//  struct task_struct *p;
+	//  int delta;
+	//  struct rq *rq;
+	//  kuid_t root_uid = KUIDT_INIT(0);
+	 //
+	//  if (weight < 1 || weight > 20) {
+	//          return -EINVAL;
+	//  }
+	 //
+	//  if (pid == 0) {
+	//          /* set calling process weight */
+	//          p = current;
+	//  } else {
+	//          if (!uid_eq(current->cred->euid, root_uid)) {
+	//                  return -EINVAL;
+	//          }
+	//          p = pid_task(find_vpid(pid), PIDTYPE_PID);
+	//          if (p == NULL) {
+	//                  return -EINVAL;
+	//          }
+	//  }
+	 //
+	//  if (p->policy != SCHED_WRR)
+	//          return -EINVAL;
+	 //
+	//  delta = p->wrr.weight - weight;
+	//  if (!uid_eq(current->cred->euid, root_uid) && delta < 0) {
+	//          return -EINVAL;
+	//  }
+	 //
+	//  p->wrr.weight = weight;
+	//  rq = cpu_rq(task_cpu(p));
+	//  rq->wrr.total_weight -= delta;
 
-       return 0;
+	 return 0;
 }
 
 /* Obtain the SCHED_WRR weight of a process as identified by 'pid'.
@@ -146,21 +146,21 @@ int sys_sched_setweight(pid_t pid, int weight)
 int sys_sched_getweight(pid_t pid)
 {
 	printk(KERN_DEBUG "[soo] sys_sched_getweight");
-      //  struct task_struct *p;
-			 //
-      //  if (pid == 0) {
-      //          p = current;
-      //  } else {
-      //          p = pid_task(find_vpid(pid), PIDTYPE_PID);
-      //          if (p == NULL) {
-      //                  return -EINVAL;
-      //          }
-      //  }
-      //  if (p->policy != SCHED_WRR) {
-      //          return -EINVAL;
-      //  }
+	//  struct task_struct *p;
+	//
+	//  if (pid == 0) {
+	//          p = current;
+	//  } else {
+	//          p = pid_task(find_vpid(pid), PIDTYPE_PID);
+	//          if (p == NULL) {
+	//                  return -EINVAL;
+	//          }
+	//  }
+	//  if (p->policy != SCHED_WRR) {
+	//          return -EINVAL;
+	//  }
 
-       return 0;
+	 return 0;
 }
 
 
