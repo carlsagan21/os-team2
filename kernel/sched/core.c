@@ -1939,14 +1939,14 @@ void sched_fork(struct task_struct *p)
 	}
 
  // TODO soo implement!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-// 	if (task_has_wrr_policy(p))
-// 		p->sched_class = &wrr_sched_class;
-// else
-	if (!rt_prio(p->prio))
-		p->sched_class = &wrr_sched_class; //TODO soo 지금은 fort 한 것이 wrr 로는 못됨.
+	if (task_has_wrr_policy(p))
+		p->sched_class = &wrr_sched_class;
+	else if (!rt_prio(p->prio))
+		p->sched_class = &fair_sched_class; //TODO soo 지금은 fort 한 것이 wrr 로는 못됨.
 		// TODO woong : Need to intialize sched_class to wrr_sched_class if necessary
 		//p -> sched_class = &wrr_sched_class;
-else
+	// else
+
 	if (p->sched_class->task_fork)
 		p->sched_class->task_fork(p);
 
