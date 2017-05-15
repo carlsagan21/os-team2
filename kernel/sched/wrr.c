@@ -166,19 +166,22 @@ static void update_curr(struct rq *rq)
 static void
 enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
-//        struct sched_wrr_entity *wrr_se = &p->wrr_se;
-//
-//        //TODO flag 처리
-//
-//        enqueue_wrr_entity(&rq->wrr, wrr_se, 0);
-//
-//        inc_nr_running(rq);
-//        wrr_rq_of_task(p)->total_weight += wrr_se->weight;
-//        p->on_rq = 1;
+	struct wrr_rq *wrr_rq = wrr_rq_of_task(p);
+	raw_spin_lock(&wrr_rq->lock);
+	struct sched_wrr_entity *wrr_se = &p->wrr_se;
+
+	//TODO flag 처리
+
+	enqueue_wrr_entity(wrr_rq, wrr_se, 0);
+
+	inc_nr_running(rq);
+	wrr_rq->total_weight += wrr_se->weight;
+	p->on_rq = 1;
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func enqueue_task_wrr: %d", p->pid);
-	print_wrr_list(&rq->wrr);
+	print_wrr_list(wrr_rq);
 #endif
+	raw_spin_unlock(&wrr_rq->lock);
 }
 
 /*fair
@@ -188,23 +191,26 @@ enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
  */
 static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
-//        /*
-//         * Update run-time statistics of the 'current'.
-//         */
-//        // update_curr(wrr_rq);
-//        struct sched_wrr_entity *wrr_se = &p->wrr_se;
-//
-//        list_del_init(&wrr_se->run_list);
-//
-//        rq->wrr.wrr_nr_running--;
-//
-//        dec_nr_running(rq);
-//        wrr_rq_of_task(p)->total_weight -= wrr_se->weight;
-//        p->on_rq = 0;
+	struct wrr_rq *wrr_rq = wrr_rq_of_task(p);
+	raw_spin_lock(&wrr_rq->lock);
+	struct sched_wrr_entity *wrr_se = &p->wrr_se;
+	/*
+	* Update run-time statistics of the 'current'.
+	*/
+	// update_curr(wrr_rq);
+
+	list_del_init(&wrr_se->run_list);
+
+	wrr_rq->wrr_nr_running--;
+
+	dec_nr_running(rq);
+	wrr_rq->total_weight -= wrr_se->weight;
+	p->on_rq = 0;
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func dequeue_task_wrr: %d", p->pid);
 	print_wrr_list(&rq->wrr);
 #endif
+	raw_spin_unlock(&wrr_rq->lock);
 }
 
 /*fair
