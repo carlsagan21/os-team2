@@ -73,10 +73,10 @@ static struct sched_wrr_entity *pick_next_wrr_entity(struct wrr_rq *wrr_rq)
 
 static void requeue_task_wrr(struct rq *rq, struct task_struct *p, int head)
 {
-	struct sched_wrr_entity *wrr_se = &p->wrr_se;
-	struct wrr_rq *wrr_rq = &rq->wrr;
-
-	list_move_tail(&wrr_se->run_list, &wrr_rq->run_list);
+	// struct sched_wrr_entity *wrr_se = &p->wrr_se;
+	// struct wrr_rq *wrr_rq = &rq->wrr;
+	//
+	// list_move_tail(&wrr_se->run_list, &wrr_rq->run_list);
 }
 
 static void update_curr_wrr(struct rq *rq){
@@ -97,14 +97,16 @@ static void update_curr_wrr(struct rq *rq){
 		// curr_task_prev_time_slice = wrr_se->time_slice;
 		// curr_task_updated_time_slice = curr_task_updated_time_slice - 1;
 		wrr_se->time_slice--;
-		printk(KERN_DEBUG "[soo] wrr_se->time_slice: %u", wrr_se->time_slice);
+		// printk(KERN_DEBUG "[soo] wrr_se->time_slice: %u", wrr_se->time_slice);
 
 		if (wrr_se->time_slice == 0){
-			printk(KERN_DEBUG "[soo] wrr_se->time_slice == 0");
 			struct list_head *temp = &wrr_se->run_list;
-			if(temp->next != &wrr_rq->run_list)
-				resched_task(curr);
-			wrr_se->time_slice = wrr_se->weight * TIME_SLICE;
+			if(temp->next != &wrr_rq->run_list) {
+				printk(KERN_DEBUG "[soo] set_tsk_need_resched: %d, %u", curr->pid,  wrr_se->weight);
+				set_tsk_need_resched(curr);
+			} else {
+				wrr_se->time_slice = wrr_se->weight * TIME_SLICE;
+			}
 		}
 
 	}
@@ -176,12 +178,15 @@ static void yield_task_wrr(struct rq *rq)
 //        struct task_struct *temp = rq->curr;
 //        dequeue_task_wrr(rq, temp, 0);
 //        enqueue_task_wrr(rq, temp, 0);
-//        // requeue_task_wrr(rq, rq->curr, 0);
+	if (task_has_wrr_policy(rq->curr)) {
+		requeue_task_wrr(rq, rq->curr, 0);
+	}
 //        // TODO list_move_tail
 #ifdef CONFIG_SCHED_DEBUG
 	// printk(KERN_DEBUG "[soo] wrr_func yield_task_wrr");
 	// print_wrr_list(&rq->wrr);
 #endif
+	return;
 }
 
 //soo yield_to_task_wrr 은 필요가 없다. 특정 task 로 yield 하는 경우가 없기 때문.
@@ -211,8 +216,8 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
 	struct task_struct *p = NULL;
 	wrr_rq = &rq->wrr;
 
-	if (!wrr_rq->wrr_nr_running)
-		return NULL;
+	// if (!wrr_rq->wrr_nr_running)
+	// 	return NULL;
 
 	//soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
 	wrr_se = pick_next_wrr_entity(wrr_rq);
@@ -246,6 +251,27 @@ static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 	return;
 }
 
+static int find_lowest_rq(struct task_struct *p)
+{
+	int cpu;
+	struct rq *rq;
+	int best_cpu;
+	unsigned long best_weight;
+	struct wrr_rq *wrr;
+
+	best_cpu = -1;
+
+	for_each_online_cpu(cpu) {
+		rq = cpu_rq(cpu);
+		wrr = &rq->wrr;
+		if ((best_cpu == -1 || wrr->total_weight < best_weight) &&
+				cpumask_test_cpu(cpu, tsk_cpus_allowed(p))) {
+			best_cpu = cpu;
+			best_weight = wrr->total_weight;
+		}
+	}
+	return best_cpu;
+}
 /*fair
  * sched_balance_self: balance the current task (running on cpu) in domains
  * that have the 'flag' flag set. In practice, this is SD_BALANCE_FORK and
@@ -260,13 +286,32 @@ static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 static int
 select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 {
-	// int cpu = smp_processor_id();
-	int prev_cpu = task_cpu(p);
-	// int new_cpu = cpu;
-#ifdef CONFIG_SCHED_DEBUG
-	// printk(KERN_DEBUG "[soo] wrr_func select_task_rq_wrr: %d", p->pid);
-#endif
-	return prev_cpu;
+// 	// int cpu = smp_processor_id();
+// 	int prev_cpu = task_cpu(p);
+// 	// int new_cpu = cpu;
+// #ifdef CONFIG_SCHED_DEBUG
+// 	// printk(KERN_DEBUG "[soo] wrr_func select_task_rq_wrr: %d", p->pid);
+// #endif
+// 	return prev_cpu;
+
+	struct rq *rq;
+	int cpu;
+	int target;
+
+	cpu = task_cpu(p);
+	if (p->nr_cpus_allowed == 1)
+		return cpu;
+
+	rq = cpu_rq(cpu);
+
+	rcu_read_lock();
+
+	target = find_lowest_rq(p);
+	if (target != -1)
+		cpu = target;
+	rcu_read_unlock();
+
+	return cpu;
 }
 
 //TODO soo migration 상황에서 불리는 것. rt 에 없음. 일단 제외시켜놓는다.

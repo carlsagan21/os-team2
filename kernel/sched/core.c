@@ -178,78 +178,80 @@ static int is_migratable(struct rq *rq, struct task_struct *p, int dest_cpu)
 /*load_balance*/
 static void load_balance_wrr(struct rq *rq)
 {
-//    int cpu;
-//    unsigned int max_weight = rq->wrr.total_weight;
-//    unsigned int min_weight = rq->wrr.total_weight;
-//    struct rq *min_rq = rq;
-//    struct rq *max_rq = rq;
-//    struct rq *temp;
-//    struct wrr_rq *wrr;
-//    struct list_head *list;
-//    struct sched_wrr_entity *se, *n;
-//    struct task_struct *mp; /* migrating task */
-//    unsigned int mweight;
-//    struct task_struct *p;
-//    unsigned long now;
-//
-//    spin_lock(&balance_lock);
-//
-//    now = jiffies;
-//    if (time_before(now, balance_timestamp + LB_INTERVAL)) {
-//            spin_unlock(&balance_lock);
-//            return;
-//    }
-//
-//    balance_timestamp = now;
-//
-//    spin_unlock(&balance_lock);
-//
-//    /*find min, max rq*/
-//    rcu_read_lock();
-//    for_each_online_cpu(cpu) {
-//            temp = cpu_rq(cpu);
-//            wrr = &temp->wrr;
-//
-//            if (wrr->total_weight < min_weight) {
-//                    min_rq = temp;
-//                    min_weight = wrr->total_weight;
-//            }
-//            if (wrr->total_weight > max_weight) {
-//                    max_rq = temp;
-//                    max_weight = wrr->total_weight;
-//            }
-//    }
-//    rcu_read_unlock();
-//
-//    if (min_rq == max_rq)
-//            return;
-//
-//    double_rq_lock(max_rq, min_rq);
-//
-//    mweight = 0;
-//    mp = NULL;
-//    list = &max_rq->wrr.run_queue;
-//
-//  list_for_each_entry_safe(se, n, list, run_list) {
-//            p = container_of(se, struct task_struct, wrr);
-//          if (is_migratable(max_rq, p, min_rq->cpu) &&
-//                            se->weight > mweight &&
-//                            min_weight + se->weight < max_weight - se->weight) {
-//                    mp = p;
-//                    mweight = se->weight;
-//            }
-//    }
-//
-//    if (mp == NULL) {
-//            double_rq_unlock(max_rq, min_rq);
-//            return;
-//    }
-//
-//    deactivate_task(max_rq, mp, 0);
-//    set_task_cpu(mp, min_rq->cpu);
-//    activate_task(min_rq, mp, 0);
-//
-//    double_rq_unlock(max_rq, min_rq);
+	int cpu;
+	unsigned int max_weight = rq->wrr.total_weight;//soo 무한대
+	unsigned int min_weight = rq->wrr.total_weight;//soo 무한대
+	struct rq *min_rq = rq;
+	struct rq *max_rq = rq;
+	struct rq *temp;
+	struct wrr_rq *wrr;
+	struct list_head *list;
+	struct sched_wrr_entity *se, *n;
+	struct task_struct *mp; /* migrating task */
+	unsigned int mweight;
+	struct task_struct *p;
+	unsigned long now;
+
+	spin_lock(&balance_lock);
+
+	now = jiffies;
+	if (time_before(now, balance_timestamp + LB_INTERVAL)) {
+		spin_unlock(&balance_lock);
+		return;
+	}
+
+	balance_timestamp = now;
+
+	spin_unlock(&balance_lock);
+
+	/*find min, max rq*/
+	rcu_read_lock();
+	for_each_online_cpu(cpu) {
+		temp = cpu_rq(cpu);
+		wrr = &temp->wrr;
+
+		if (wrr->total_weight < min_weight) {
+			min_rq = temp;
+			min_weight = wrr->total_weight;
+		}
+		if (wrr->total_weight > max_weight) {
+			max_rq = temp;
+			max_weight = wrr->total_weight;
+		}
+	}
+	rcu_read_unlock();
+
+	if (min_rq == max_rq)
+		return;
+
+	double_rq_lock(max_rq, min_rq);
+
+	mweight = 0;
+	mp = NULL;
+	list = &max_rq->wrr.run_list;
+
+	list_for_each_entry_safe(se, n, list, run_list) {
+		p = container_of(se, struct task_struct, wrr_se);
+		if (
+			is_migratable(max_rq, p, min_rq->cpu) &&
+			se->weight > mweight &&
+			min_weight + se->weight < max_weight - se->weight
+		) {
+			mp = p;
+			mweight = se->weight;
+		}
+	}
+
+	if (mp == NULL) {
+		double_rq_unlock(max_rq, min_rq);
+		return;
+	}
+
+	deactivate_task(max_rq, mp, 0);
+	set_task_cpu(mp, min_rq->cpu);
+	activate_task(min_rq, mp, 0);
+
+	double_rq_unlock(max_rq, min_rq);
 }
 
 
