@@ -1054,6 +1054,11 @@ struct sched_rt_entity {
 #endif
 };
 
+struct sched_wrr_entity {
+	struct list_head run_list;
+	unsigned int weight;
+	unsigned int time_slice;
+};
 
 struct rcu_node;
 
@@ -1073,17 +1078,18 @@ struct task_struct {
 
 #ifdef CONFIG_SMP
 	struct llist_node wake_entry;
-	int on_cpu;
+	int on_cpu; //NOTE woong : Which CPU, task is processed
 #endif
-	int on_rq;
+	int on_rq; //NOTE woong: which RQ, task is processed //NOTE soo sched_fork 에서 0으로 init. cp다른듯?
 
 	int prio, static_prio, normal_prio;
 	unsigned int rt_priority;
-	const struct sched_class *sched_class;
+	const struct sched_class *sched_class; //NOTE woong : rt_sched_class, cfs_sched_class, wrr_sched_class
 	struct sched_entity se;
 	struct sched_rt_entity rt;
+	struct sched_wrr_entity wrr_se; //NOTE soo rq 의 struct wrr_rq wrr 과 구분된다.
 #ifdef CONFIG_CGROUP_SCHED
-	struct task_group *sched_task_group;
+	struct task_group *sched_task_group; //NOTE woong: Have to figure out how its used
 #endif
 
 #ifdef CONFIG_PREEMPT_NOTIFIERS
@@ -1104,7 +1110,7 @@ struct task_struct {
 	unsigned int btrace_seq;
 #endif
 
-	unsigned int policy;
+	unsigned int policy; //NOTE woong : sched_rr, sched_fifo, sched_wrr
 	int nr_cpus_allowed;
 	cpumask_t cpus_allowed;
 
