@@ -51,7 +51,7 @@ enqueue_wrr_entity(struct wrr_rq *wrr_rq, struct sched_wrr_entity *wrr_se, int f
 {
 	list_add_tail(&wrr_se->run_list, &wrr_rq->run_list);
 
-	wrr_rq->wrr_nr_running++;
+	// wrr_rq->wrr_nr_running++;
 }
 
 static struct sched_wrr_entity *pick_next_wrr_entity(struct wrr_rq *wrr_rq)
@@ -156,7 +156,7 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 
 	list_del_init(&wrr_se->run_list);
 
-	wrr_rq->wrr_nr_running--;
+	// wrr_rq->wrr_nr_running--;
 
 	dec_nr_running(rq);
 	wrr_rq->total_weight -= wrr_se->weight;
