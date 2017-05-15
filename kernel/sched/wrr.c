@@ -102,7 +102,7 @@ static void update_curr_wrr(struct rq *rq){
 		if (wrr_se->time_slice == 0){
 			struct list_head *temp = &wrr_se->run_list;
 			if(temp->next != &wrr_rq->run_list) {
-				printk(KERN_DEBUG "[soo] set_tsk_need_resched: %d, %u", curr->pid,  wrr_se->weight);
+				// printk(KERN_DEBUG "[soo] set_tsk_need_resched: %d, %u", curr->pid,  wrr_se->weight);
 				set_tsk_need_resched(curr);
 			} else {
 				wrr_se->time_slice = wrr_se->weight * TIME_SLICE;
