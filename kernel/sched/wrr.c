@@ -80,25 +80,31 @@ static void requeue_task_wrr(struct rq *rq, struct task_struct *p, int head)
 }
 
 static void update_curr_wrr(struct rq *rq){
-	struct task_struct* curr;
-	struct wrr_rq* wrr_rq;
+	struct task_struct *curr;
+	struct wrr_rq *wrr_rq;
+	struct sched_wrr_entity *wrr_se;
+	// unsigned int curr_task_prev_time_slice;
+	// unsigned int curr_task_updated_time_slice;
 
 	wrr_rq = &rq->wrr;
 
 	raw_spin_lock(&wrr_rq->lock);
-	struct sched_wrr_entity *wrr_se = list_first_entry_or_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
+	wrr_se = list_first_entry_or_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
 
-	if(wrr_se != NULL){
-		*curr = wrr_se_task_of(wrr_se);
+	if (wrr_se != NULL) {
+		curr = wrr_se_task_of(wrr_se);
 
-		unsigned int curr_task_prev_time_slice = &wrr_se->time_slice;
-		unsigned int curr_task_updated_time_slice = curr_task_prev_time_slice - 1;
+		// curr_task_prev_time_slice = wrr_se->time_slice;
+		// curr_task_updated_time_slice = curr_task_updated_time_slice - 1;
+		wrr_se->time_slice--;
+		printk(KERN_DEBUG "[soo] wrr_se->time_slice: %u", wrr_se->time_slice);
 
-		if(curr_task_updated_time_slice == 0){
-			struct list_head* temp = &wrr_se->run_list;
+		if (wrr_se->time_slice == 0){
+			printk(KERN_DEBUG "[soo] wrr_se->time_slice == 0");
+			struct list_head *temp = &wrr_se->run_list;
 			if(temp->next != &wrr_rq->run_list)
 				resched_task(curr);
-			&wrr_se->time_slice = &wrr_se->weight * TIME_SLICE;
+			wrr_se->time_slice = wrr_se->weight * TIME_SLICE;
 		}
 
 	}
@@ -106,113 +112,6 @@ static void update_curr_wrr(struct rq *rq){
 	raw_spin_unlock(&wrr_rq->lock);
 	return;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// static void old_update_curr_wrr(struct rq *rq)
-// {
-       // struct task_struct *curr;
-       // struct sched_wrr_entity *wrr_se;
-  // struct list_head *rq_list;
-  // struct list_head *se_list;
-  // struct list_head *next;
-  // struct wrr_rq *wrr_rq;
-       //
-  // wrr_rq = &rq->wrr;
-       //
-       // // raw_spin_lock(&wrr_rq->lock);
-       //
-  // rq_list = wrr_rq_list(wrr_rq);
-       //
-       // if (rq->curr == NULL || rq->wrr.curr == NULL) {
-       //      // raw_spin_unlock(&wrr_rq->lock);
-       //      return;
-       // }
-       // wrr_se = rq->wrr.curr;
-       // // se = &curr->wrr;
-       // // se_list = &se->run_list;
-       //
-       // /* Decrease the time slice of currently running task until it reaches zero */
-       // if (--wrr_se->time_slice) {
-       //      // raw_spin_unlock(&wrr_rq->lock);
-       //      return;
-       // }
-       //
-       // if (se_list->next != se_list->prev) { /* < If more than one element in the list, move the cursor to the next task and resched */
-       //      next = se_list->next;
-       //      if (next == &wrr_rq->run_queue)
-       //              next = next->next;
-       //      wrr_rq->curr = wrr_task_of(list_entry(next, struct sched_wrr_entity, run_list));
-       //      set_tsk_need_resched(curr);
-       // } else
-       //      se->time_slice = se->weight * WRR_TIMESLICE; /* < Else, refill the current task's time_slice */
-       //
-       // // raw_spin_unlock(&wrr_rq->lock);
-// }
-static void update_curr(struct rq *rq)
-{
-      //  struct task_struct *curr;
-      //  struct sched_wrr_entity *wrr_se;
-      //  wrr_se = rq->wrr.curr;
-      //  struct wrr_rq *wrr_rq = &rq->wrr;
-			 //
-      //  if (wrr_se == NULL)
-      //          return;
-			 //
-      //  // curr = rq->wrr.curr;
-			 //
-      //  // struct sched_wrr_entity *se;
-      //  // se = &curr->wrr;
-			 //
-      //  if(wrr_se->time_slice > 0) {
-      //          --wrr_se->time_slice;
-      //          return;
-      //  } //if current task has remaining time slice, -1 to time slice and terminate
-			 //
-      //  // if(&wrr_se->run_list.next != &wrr_se->run_list.prev)//get next task
-      //  // {
-      //          struct list_head *next = &wrr_se->run_list.next;
-      //          if(next == &wrr_rq->run_list)
-      //                  next = next->next;
-      //          curr = wrr_se_task_of(list_entry(next, struct sched_wrr_entity, run_list));
-      //          set_tsk_need_resched(curr);//FIXME implement wrr_task_of()
-      //  // }
-      //  // else//when there is no next task, refill the timeslice
-      //  // {
-      //  //      wrr_se->time_slice = wrr_se->weight * TIME_SLICE;
-      //  // }
-}
-
 
 //soo class methods
 /*rt
@@ -236,8 +135,8 @@ enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	wrr_rq->total_weight += wrr_se->weight;
 	p->on_rq = 1;
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func enqueue_task_wrr: %d", p->pid);
-	print_wrr_list(wrr_rq);
+	// printk(KERN_DEBUG "[soo] wrr_func enqueue_task_wrr: %d", p->pid);
+	// print_wrr_list(wrr_rq);
 #endif
 	raw_spin_unlock(&wrr_rq->lock);
 }
@@ -261,8 +160,8 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	wrr_rq->total_weight -= wrr_se->weight;
 	p->on_rq = 0;
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func dequeue_task_wrr: %d", p->pid);
-	print_wrr_list(&rq->wrr);
+	// printk(KERN_DEBUG "[soo] wrr_func dequeue_task_wrr: %d", p->pid);
+	// print_wrr_list(&rq->wrr);
 #endif
 	raw_spin_unlock(&wrr_rq->lock);
 }
@@ -280,17 +179,17 @@ static void yield_task_wrr(struct rq *rq)
 //        // requeue_task_wrr(rq, rq->curr, 0);
 //        // TODO list_move_tail
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func yield_task_wrr");
-	print_wrr_list(&rq->wrr);
+	// printk(KERN_DEBUG "[soo] wrr_func yield_task_wrr");
+	// print_wrr_list(&rq->wrr);
 #endif
 }
 
 //soo yield_to_task_wrr 은 필요가 없다. 특정 task 로 yield 하는 경우가 없기 때문.
-// static bool yield_to_task_wrr(struct rq *rq, struct task_struct *p, bool preempt)
-// {
-//     printk(KERN_DEBUG "[soo] wrr_func yield_to_task_wrr");
-//     return false;
-// }
+static bool yield_to_task_wrr(struct rq *rq, struct task_struct *p, bool preempt)
+{
+    // printk(KERN_DEBUG "[soo] wrr_func yield_to_task_wrr");
+    return true;
+}
 
 /*rt, fair
  * Preempt the current task with a newly woken task if needed:
@@ -298,31 +197,16 @@ static void yield_task_wrr(struct rq *rq)
 static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func check_preempt_curr_wrr: %d", p->pid);
+	// printk(KERN_DEBUG "[soo] wrr_func check_preempt_curr_wrr: %d", p->pid);
 #endif
+	return;
 }
 
 
 static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
 	// //soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
-	// struct sched_wrr_entity *wrr_se;
-	// struct task_struct *p = NULL;
-      //  struct wrr_rq *wrr_rq;
-			//
-      //  wrr_rq = &rq->wrr;
-			//
-      //  if (!wrr_rq->wrr_nr_running)
-      //          return NULL;
-			//
-      //  //soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
-      //  wrr_se = pick_next_wrr_entity(wrr_rq);
-			//
-      //  p = wrr_se_task_of(wrr_se);
-      //  p->wrr_se.time_slice = p->wrr_se.weight * TIME_SLICE;
-      // //  p->wrr_se.exec_start = rq->clock_task;
-			// wrr_rq->curr = p;
-
+	struct sched_wrr_entity *wrr_se;
 	struct wrr_rq *wrr_rq;
 	struct task_struct *p = NULL;
 	wrr_rq = &rq->wrr;
@@ -339,8 +223,8 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
 	// wrr_rq->curr = p;
 
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func pick_next_task_wrr2: %d", wrr_se_task_of(wrr_se)->pid);
-	print_wrr_list(&rq->wrr);
+	// printk(KERN_DEBUG "[soo] wrr_func pick_next_task_wrr2: %d", wrr_se_task_of(wrr_se)->pid);
+	// print_wrr_list(&rq->wrr);
 #endif
 	return p;
 }
@@ -357,8 +241,9 @@ static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 	// enqueue_task_wrr(rq, prev, 0);// FIXME 리스트에 추가하고, rq 와 wrr_rq 에 nr 을 올려줘야하나? 지금은 올려줌.
 	// 안올려줄경우
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func put_prev_task_wrr: %d", prev->pid);
+	// printk(KERN_DEBUG "[soo] wrr_func put_prev_task_wrr: %d", prev->pid);
 #endif
+	return;
 }
 
 /*fair
@@ -379,7 +264,7 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 	int prev_cpu = task_cpu(p);
 	// int new_cpu = cpu;
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func select_task_rq_wrr: %d", p->pid);
+	// printk(KERN_DEBUG "[soo] wrr_func select_task_rq_wrr: %d", p->pid);
 #endif
 	return prev_cpu;
 }
@@ -440,8 +325,8 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 static void rq_online_wrr(struct rq *rq)
 {
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func rq_online_wrr");
-	print_wrr_list(&rq->wrr);
+	// printk(KERN_DEBUG "[soo] wrr_func rq_online_wrr");
+	// print_wrr_list(&rq->wrr);
 #endif
 }
 
@@ -449,8 +334,8 @@ static void rq_online_wrr(struct rq *rq)
 static void rq_offline_wrr(struct rq *rq)
 {
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func rq_offline_wrr");
-	print_wrr_list(&rq->wrr);
+	// printk(KERN_DEBUG "[soo] wrr_func rq_offline_wrr");
+	// print_wrr_list(&rq->wrr);
 #endif
 }
 
@@ -465,9 +350,10 @@ static void set_curr_task_wrr(struct rq *rq)
 	// struct wrr_rq *wrr_rq = &rq->wrr;
 	// wrr_rq->curr = &rq->curr->wrr_se;
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func set_curr_task_wrr");
-	print_wrr_list(&rq->wrr);
+	// printk(KERN_DEBUG "[soo] wrr_func set_curr_task_wrr");
+	// print_wrr_list(&rq->wrr);
 #endif
+	return;
 }
 
 /*fair
@@ -477,8 +363,9 @@ static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
 {
   update_curr_wrr(rq);
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr: %d", curr->pid);
+	// printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr: %d", curr->pid);
 #endif
+	return;
 }
 
 /*fair
@@ -491,7 +378,7 @@ static void task_fork_wrr(struct task_struct *p)
 	p->wrr_se.weight = p->real_parent->wrr_se.weight;
 	p->wrr_se.time_slice = p->wrr_se.weight * TIME_SLICE;
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func task_fork_wrr: %d", p->pid);
+	// printk(KERN_DEBUG "[soo] wrr_func task_fork_wrr: %d", p->pid);
 #endif
 }
 
@@ -503,7 +390,7 @@ static void task_fork_wrr(struct task_struct *p)
 static void switched_from_wrr(struct rq *rq, struct task_struct *p)
 {
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func switched_from_wrr: %d", p->pid);
+	// printk(KERN_DEBUG "[soo] wrr_func switched_from_wrr: %d", p->pid);
 #endif
 }
 
@@ -520,7 +407,7 @@ static void switched_to_wrr(struct rq *rq, struct task_struct *p)
 	p->wrr_se.weight = DEFAULT_WEIGHT;
 	p->wrr_se.time_slice = DEFAULT_WEIGHT * TIME_SLICE;
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func switched_to_wrr: %d", p->pid);
+	// printk(KERN_DEBUG "[soo] wrr_func switched_to_wrr: %d", p->pid);
 #endif
 }
 
@@ -532,20 +419,20 @@ static void switched_to_wrr(struct rq *rq, struct task_struct *p)
  * Priority of the task has changed. Check to see if we preempt
  * the current task.
  */
-static void
-prio_changed_wrr(struct rq *rq, struct task_struct *p, int oldprio)
-{
-#ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func prio_changed_wrr: %d", p->pid);
-#endif
-}
+// static void
+// prio_changed_wrr(struct rq *rq, struct task_struct *p, int oldprio)
+// {
+// #ifdef CONFIG_SCHED_DEBUG
+// 	// printk(KERN_DEBUG "[soo] wrr_func prio_changed_wrr: %d", p->pid);
+// #endif
+// }
 
 static unsigned int get_rr_interval_wrr(struct rq *rq, struct task_struct *task)
 {
 #ifdef CONFIG_SCHED_DEBUG
-	printk(KERN_DEBUG "[soo] wrr_func get_rr_interval_wrr: %d", task->pid);
+	// printk(KERN_DEBUG "[soo] wrr_func get_rr_interval_wrr: %d", task->pid);
 #endif
-	return 0;
+	return task->wrr_se.weight * TIME_SLICE;
 }
 
 // static void task_move_group_wrr(struct task_struct *p, int on_rq)
@@ -568,7 +455,7 @@ const struct sched_class wrr_sched_class = {
 	.yield_task             = yield_task_wrr,
 	//      bool (*yield_to_task) (struct rq *rq, struct task_struct *p, bool preempt);
 	// yield_to_task가 fair 에는 있고 rt 에는 없음.
-	// .yield_to_task               = yield_to_task_wrr,
+	.yield_to_task               = yield_to_task_wrr,
 
 	//      void (*check_preempt_curr) (struct rq *rq, struct task_struct *p, int flags);
 	.check_preempt_curr     = check_preempt_curr_wrr,
@@ -623,7 +510,7 @@ const struct sched_class wrr_sched_class = {
 	.switched_to            = switched_to_wrr,
 	//      void (*prio_changed) (struct rq *this_rq, struct task_struct *task,
 	//                           int oldprio);
-	.prio_changed           = prio_changed_wrr,
+	// .prio_changed           = prio_changed_wrr,
 
 	//      unsigned int (*get_rr_interval) (struct rq *rq,
 	//                                       struct task_struct *task);
