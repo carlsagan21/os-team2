@@ -21,8 +21,8 @@ int main()
 
 	printf("middle policy = %d \n", sched_getscheduler(0));
 
-	syscall(__NR_sched_setweight, 0, 1);
-	printf("getweight: %u\n", syscall(__NR_sched_getweight, 0));
+	printf("setweight: %ld\n", syscall(__NR_sched_setweight, 0, 1));
+	printf("getweight: %ld\n", syscall(__NR_sched_getweight, 0));
 	sleep(5);
 	if (fork()) {
 		//parent
