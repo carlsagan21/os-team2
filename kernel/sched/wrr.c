@@ -62,7 +62,7 @@ static struct sched_wrr_entity *pick_next_wrr_entity(struct wrr_rq *wrr_rq)
 	// cfs 의 경우, __pick_first_entity 에서 첫번째 걸 보고, skip 을 체크하고 next 로 second 를 본다.
 	// rt 의 경우, active 를 찾아서, active 다음을 리턴한다.
 	// 우선 다음걸 찾아서 리턴하는 걸로 구현한다.
-	struct sched_wrr_entity *wrr_se = list_first_entry(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
+	struct sched_wrr_entity *wrr_se = list_first_entry_or_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
 
 	// if (wrr_rq->curr == NULL) {
 	return wrr_se;
@@ -245,14 +245,7 @@ static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int fla
 
 static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
-	struct wrr_rq *wrr_rq;
-	struct task_struct *p = NULL;
-	wrr_rq = &rq->wrr;
-	// if(!wrr_rq->wrr_nr_running)
-		// return NULL;
-	struct sched_wrr_entity *wrr_se = list_first_entry_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
-	p = wrr_se_task_of(wrr_se);
-	//soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
+	// //soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
 	// struct sched_wrr_entity *wrr_se;
 	// struct task_struct *p = NULL;
       //  struct wrr_rq *wrr_rq;
@@ -269,6 +262,21 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
       //  p->wrr_se.time_slice = p->wrr_se.weight * TIME_SLICE;
       // //  p->wrr_se.exec_start = rq->clock_task;
 			// wrr_rq->curr = p;
+
+	struct wrr_rq *wrr_rq;
+	struct task_struct *p = NULL;
+	wrr_rq = &rq->wrr;
+
+	if (!wrr_rq->wrr_nr_running)
+		return NULL;
+
+	//soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
+	wrr_se = pick_next_wrr_entity(wrr_rq);
+
+	p = wrr_se_task_of(wrr_se);
+	p->wrr_se.time_slice = p->wrr_se.weight * TIME_SLICE;
+	//  p->wrr_se.exec_start = rq->clock_task;
+	// wrr_rq->curr = p;
 
 #ifdef CONFIG_SCHED_DEBUG
 	printk(KERN_DEBUG "[soo] wrr_func pick_next_task_wrr2: %d", wrr_se_task_of(wrr_se)->pid);
