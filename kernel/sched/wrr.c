@@ -170,8 +170,6 @@ enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	raw_spin_lock(&wrr_rq->lock);
 	struct sched_wrr_entity *wrr_se = &p->wrr_se;
 
-	//TODO flag 처리
-
 	enqueue_wrr_entity(wrr_rq, wrr_se, 0);
 
 	inc_nr_running(rq);
@@ -194,10 +192,6 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	struct wrr_rq *wrr_rq = wrr_rq_of_task(p);
 	raw_spin_lock(&wrr_rq->lock);
 	struct sched_wrr_entity *wrr_se = &p->wrr_se;
-	/*
-	* Update run-time statistics of the 'current'.
-	*/
-	// update_curr(wrr_rq);
 
 	list_del_init(&wrr_se->run_list);
 
