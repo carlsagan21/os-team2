@@ -2070,17 +2070,17 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	update_cfs_shares(cfs_rq);
 }
 
-+/*NOTE soo
-+task 의 weight 를 가지고 sched_slice 에서 계산된 ideal_runtime 과 현재 수행된 시간을 비교해서
-+수행된 시간이 더 길면 더이상 수행되면 안된다는 의미이므로
-+TIF_NEED_RESCHED flag 를 set 하고 다른 task 로 스케쥴링을 넘김
-+- 아직 sysctl_sched_min_granularity (default 0.75ms) 만큼 수행하지 못했다면 그냥 return 하여
-+계속 실행될 수 있도록 함.
-+- runqueue 의 left-most task 를 뽑아 이 task 와의 vruntime 차를 확인하여 (vruntime_curr - vruntime_leftmost)
-+이 차가 0 보다 작으면 현재 동작 중인 task 의 vruntime 이 가장 작다는 의미이므로 그냥 return 하여
-+계속 실행될 수 있도록 하고
-+이 차가 ideal_runtime 을 넘는 경우에 TIF_NEED_RESCHED flag 를 set 하고 다른 task 로 스케쥴링을 넘김
-+*/
+/*NOTE soo
+task 의 weight 를 가지고 sched_slice 에서 계산된 ideal_runtime 과 현재 수행된 시간을 비교해서
+수행된 시간이 더 길면 더이상 수행되면 안된다는 의미이므로
+TIF_NEED_RESCHED flag 를 set 하고 다른 task 로 스케쥴링을 넘김
+- 아직 sysctl_sched_min_granularity (default 0.75ms) 만큼 수행하지 못했다면 그냥 return 하여
+계속 실행될 수 있도록 함.
+- runqueue 의 left-most task 를 뽑아 이 task 와의 vruntime 차를 확인하여 (vruntime_curr - vruntime_leftmost)
+이 차가 0 보다 작으면 현재 동작 중인 task 의 vruntime 이 가장 작다는 의미이므로 그냥 return 하여
+계속 실행될 수 있도록 하고
+이 차가 ideal_runtime 을 넘는 경우에 TIF_NEED_RESCHED flag 를 set 하고 다른 task 로 스케쥴링을 넘김
+*/
 /*
  * Preempt the current task with a newly woken task if needed:
  */
