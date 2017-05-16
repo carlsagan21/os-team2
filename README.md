@@ -2,7 +2,7 @@
 
 ## CHANGE LOG
 
-# OS Team2 Project2 doc
+# Weighted Round Robin Scheduler
 
 Proj3 was implementing Weighted Round Robin scheduler. We declaired data structures and functions for WRR in wrr.c. The abstract spec of those data structure and functions are following that of RT and CFS. And we also modifyed core.c and sched.h to use wrr in actual linux running. WRR is set to be default scheduler.
 
