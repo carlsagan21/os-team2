@@ -9,7 +9,8 @@ void print_wrr_list(struct wrr_rq *wrr_rq);
 void init_wrr_rq(struct wrr_rq *wrr_rq, struct rq *rq)
 {
 	wrr_rq->total_weight = 0;
-	wrr_rq->wrr_nr_running = 0;
+	// wrr_rq->wrr_nr_running = 0;
+	wrr_rq->curr = NULL;
 	INIT_LIST_HEAD(&wrr_rq->run_list);
 	raw_spin_lock_init(&wrr_rq->lock);
 }
@@ -115,6 +116,119 @@ static void update_curr_wrr(struct rq *rq){
 	return;
 }
 
+//
+
+static inline struct list_head *wrr_rq_list(struct wrr_rq *wrr_rq)
+{
+	return &wrr_rq->run_list;
+}
+static inline bool is_wrr_rq_empty(struct wrr_rq *rq)
+{
+	return rq->run_list.next == &rq->run_list;
+}
+#define wrr_entity_is_task(wrr_se) (1)
+static inline struct task_struct *wrr_task_of(struct sched_wrr_entity *wrr_se)
+{
+#ifdef CONFIG_SCHED_DEBUG
+	WARN_ON_ONCE(!wrr_entity_is_task(wrr_se));
+#endif
+	return container_of(wrr_se, struct task_struct, wrr_se);
+}
+static void enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
+{
+	struct wrr_rq *wrr;
+	struct sched_wrr_entity *se;
+	struct list_head *se_list;
+	struct list_head *rq_list;
+	struct list_head *curr_list;
+	struct sched_wrr_entity *curr_se;
+
+	wrr = &rq->wrr;
+
+	raw_spin_lock(&wrr->lock);
+
+	se = &p->wrr_se;
+	se_list = &se->run_list;
+	rq_list = wrr_rq_list(wrr);
+
+
+	if (wrr->curr == NULL) {
+		/*
+		 * If the list is currently empty,
+		 * set the cursor to the newly added task and add the task to the list
+		 */
+		wrr->curr = p;
+		list_add_tail(se_list, rq_list);
+	} else {
+		/*
+		 * If the list is not empty,
+		 * simply add the task right before the cursor
+		 */
+		curr_se = &wrr->curr->wrr_se;
+		curr_list = &curr_se->run_list;
+
+		list_add_tail(se_list, curr_list);
+	}
+
+	wrr->total_weight += se->weight;
+	p->on_rq = 1;
+
+	raw_spin_unlock(&wrr->lock);
+}
+
+static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
+{
+	struct list_head *se_list;
+	struct list_head *rq_list;
+	struct wrr_rq *wrr;
+	struct sched_wrr_entity *se;
+	struct list_head *next_curr;
+
+	wrr = &rq->wrr;
+
+	raw_spin_lock(&wrr->lock);
+
+	se = &p->wrr_se;
+	se_list = &se->run_list;
+	rq_list = wrr_rq_list(wrr);
+
+	next_curr = se_list->next;
+
+	list_del_init(se_list);
+
+	if (is_wrr_rq_empty(wrr)) {
+		/* < If the run queue is empty, set the cursor to null */
+		wrr->curr = NULL;
+	} else if (p == wrr->curr) {
+		/*
+		 * Else if the deleting task is the task pointed by the cursor,
+		 * update the cursor appropriately (considering the dummy head)
+		 */
+		if (next_curr == rq_list)
+			next_curr = next_curr->next;
+		wrr->curr = wrr_task_of(list_entry(next_curr, struct sched_wrr_entity, run_list));
+	}
+
+	wrr->total_weight -= se->weight;
+	p->on_rq = 0;
+
+	raw_spin_unlock(&wrr->lock);
+}
+
+static struct task_struct *pick_next_task_wrr(struct rq *rq)
+{
+	struct task_struct *curr = rq->wrr.curr;
+
+	if (curr == NULL)
+		return NULL;
+	curr->wrr_se.time_slice = curr->wrr_se.weight * TIME_SLICE;
+	/* Return the task pointed by the cursor with updated timeslice */
+	return curr;
+}
+
+//
+
+
 //soo class methods
 /*rt
  * Adding/removing a task to/from a priority array:
@@ -125,7 +239,7 @@ static void update_curr_wrr(struct rq *rq){
  * then put the task into the rbtree:
  */
 static void
-enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
+enqueue_task_wrr_o(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct wrr_rq *wrr_rq = wrr_rq_of_task(p);
 	raw_spin_lock(&wrr_rq->lock);
@@ -148,7 +262,7 @@ enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
  * decreased. We remove the task from the rbtree and
  * update the fair scheduling stats:
  */
-static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
+static void dequeue_task_wrr_o(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct wrr_rq *wrr_rq = wrr_rq_of_task(p);
 	raw_spin_lock(&wrr_rq->lock);
@@ -208,7 +322,7 @@ static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int fla
 }
 
 
-static struct task_struct *pick_next_task_wrr(struct rq *rq)
+static struct task_struct *pick_next_task_wrr_o(struct rq *rq)
 {
 	// //soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
 	struct sched_wrr_entity *wrr_se;
