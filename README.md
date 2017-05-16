@@ -62,6 +62,10 @@ Helper Functions - adjust_wrr_sched_entity_from_max_rq_to_min_rq, get_wrr_sched_
  3) Task that makes relationship between max_rq and min_rq reverted by making total weight of max_rq less than that of min_rq could not be migrated
 
  After deciding which task to move from max_rq to min_rq, two different aspects should be considered. Task would be moved from max_rq to min_rq, at the same time task should be allocated to different cpu which contains min_rq.
+ 
+ 
+# DEMO VIDEO
+https://youtu.be/OM2x7845rgI
 
 
 
