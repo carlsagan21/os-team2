@@ -348,7 +348,7 @@ static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
 	wrr_se = list_first_entry_or_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
 
 	if (wrr_se != NULL) {
-		if (curr != wrr_se_task_of(wrr_se)) {
+		if (curr != wrr_se_task_of(wrr_se)) {//TODO 리스케줄을 해야하나? 말아야하나.
 			printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr: %d, %d", curr->pid, wrr_se_task_of(wrr_se)->pid);
 			raw_spin_unlock(&wrr_rq->lock);
 			return;
