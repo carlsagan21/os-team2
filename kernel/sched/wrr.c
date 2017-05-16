@@ -9,8 +9,6 @@
 #include <linux/cpumask.h>
 #include <linux/rcupdate.h>
 
-#define LB_INTERVAL (2 * HZ)
-
 extern void init_wrr_rq(struct wrr_rq *wrr_rq, struct rq *rq)
 {
 	wrr_rq->total_weight = 0;
@@ -363,7 +361,6 @@ static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
 
 	if (wrr_se != NULL) {
 		if (curr != wrr_se_task_of(wrr_se)) {//TODO 리스케줄을 해야하나? 말아야하나.
-			printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr: %d, %d", curr->pid, wrr_se_task_of(wrr_se)->pid);
 			raw_spin_unlock(&wrr_rq->lock);
 			return;
 		}

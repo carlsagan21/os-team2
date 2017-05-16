@@ -2,10 +2,10 @@
 
 ## 3 Big Challenges of this Project
 
-1. Making new scheduler WRR work alongside well with the existing schedulers.  
+1.  Making new scheduler WRR work alongside well with the existing schedulers.  
 	1) syscall implements
-2. Running a Linux successfully with WRR as a basic(default) scheduler.
-3. Implementing WRR policy and Load Balancing.
+2.  Running a Linux successfully with WRR as a basic(default) scheduler.
+3.  Implementing WRR policy and Load Balancing.
 	1) WRR  
 	2) cpu allocation  
 	3) load balancing  
@@ -43,10 +43,10 @@ Proj3 was implementing Weighted Round Robin scheduler. We declaired data structu
 
 #### Functions
 
-1. task_tick_wrr
+1.  task_tick_wrr
 It is called by every tick and do next things. It does 1) If current task has remaining time slice, it does -1 to time slice. 2) If time slice of current task became 0, it moves the task to tail by list_move_tail, and calls also resched_task().
 
-2. task_fork_wrr
+2.  task_fork_wrr
 When WRR sched entity is fored, it inherits the parent's weight. So it is implemented in task_fork_wrr.
 
 #### Load Balancing
@@ -114,3 +114,44 @@ Helper Functions - adjust_wrr_sched_entity_from_max_rq_to_min_rq, get_wrr_sched_
 <https://github.com/Keanesean/CS4500_OS/blob/8bd14d1387a149a4d597e44a0955903f8d452647/linux-2.6.32/kernel/sched_wrr.c>
 
 <https://github.com/nick76567/comp4511_ass05/blob/f069e4f1d87b51fb1c84b7707231ee91f54a89c0/code/sched_wrr.c>
+
+---
+
+## Test result
+
+`trial_ntimes` is a program that get `argv[1]` as the number of each weight excutions. `argv[2]` is a gap inbetween set weights. The weights start from 20, and decrease by 3, `argv[2]`.
+
+As you see, the average execution times are inversely proportional to weights.
+
+```shell
+shell "/root/test/trial_ntimes 5 3"
+start policy: 6
+getweight: 10
+set weight 20: 0
+getweight: 20
+1257.2820000	1727.2020000	1257.0940000	1257.1570000	1257.0640000	avg: 1351.1598000
+getweight: 20
+set weight 17: 0
+getweight: 17
+1657.2300000	1657.1710000	1667.3490000	1257.2760000	1691.1250000	avg: 1586.0302000
+getweight: 17
+set weight 14: 0
+getweight: 14
+1683.1300000	2080.5100000	1707.7030000	2072.0530000	1278.0000000	avg: 1764.2792000
+getweight: 14
+set weight 11: 0
+getweight: 11
+2478.7280000	2136.8830000	2088.1710000	2513.1930000	2095.2910000	avg: 2262.4532000
+getweight: 11
+set weight 8: 0
+getweight: 8
+2915.8980000	3355.4570000	2955.4050000	2958.4090000	2906.3030000	avg: 3018.2944000
+getweight: 8
+set weight 5: 0
+getweight: 5
+4525.3900000	4545.5310000	4545.3990000	4545.6230000	4546.2630000	avg: 4541.6412000
+getweight: 5
+set weight 2: 0
+getweight: 2
+9817.0080000	10515.5700000	10545.8540000	10095.9680000	10515.5500000	avg: 10297.9900000
+```

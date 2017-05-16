@@ -10,6 +10,7 @@
 #include "cpupri.h"
 #include "cpuacct.h"
 
+#define LOAD_BALANCE_TIME_SLICE (2 * HZ)
 #define DEFAULT_WEIGHT 10
 #define TIME_SLICE (HZ / 100) //NOTE soo HZ == 200
 

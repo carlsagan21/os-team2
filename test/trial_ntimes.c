@@ -29,7 +29,7 @@ int main(int argc, char* argv[])
 		printf("getweight: %u\n", syscall(__NR_sched_getweight, 0));
 		sum = 0;
 		for (j = 0; j < h; j++) {
-			t = 1874919423;
+			t = 1674919423;
 			start = clock();
 			while(t != 1){
 				for(i = 2; i <= t; i++){
