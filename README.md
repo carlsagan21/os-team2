@@ -51,6 +51,18 @@ When WRR sched entity is fored, it inherits the parent's weight. So it is implem
 
 #### Load Balancing
 
+Main Function - load_balance_wrr
+
+Helper Functions - adjust_wrr_sched_entity_from_max_rq_to_min_rq, get_wrr_sched_entity_to_be_load_balanced
+
+ Load Balance consists of several procedures. First, select max_rq and min_rq, each of which has max total_weight and min total_weight so that moving one task from another will make whole procedure efficient. Second, find the task that has biggest weight which could be moved from one to another without violating several rules.
+
+ 1) Tasks that is currently processed under the max_rq could not be migrated to other cpu’s rq
+ 2) Task that is specifically allocated to certain cpu could not be migrated
+ 3) Task that makes relationship between max_rq and min_rq reverted by making total weight of max_rq less than that of min_rq could not be migrated
+
+ After deciding which task to move from max_rq to min_rq, two different aspects should be considered. Task would be moved from max_rq to min_rq, at the same time task should be allocated to different cpu which contains min_rq.
+
 
 
 ## shell scripts
