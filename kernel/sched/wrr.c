@@ -15,7 +15,7 @@ extern void init_wrr_rq(struct wrr_rq *wrr_rq, struct rq *rq)
 {
 	wrr_rq->total_weight = 0;
 	INIT_LIST_HEAD(&wrr_rq->run_list);
-	wrr_rq->curr = NULL;
+	// wrr_rq->curr = NULL;
 	raw_spin_lock_init(&wrr_rq->lock);
 }
 
@@ -230,33 +230,18 @@ static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int fla
 	return;
 }
 
-static struct task_struct *pick_next_task_wrr(struct rq *rq)
-{
-	struct task_struct *curr = rq->wrr.curr;
-
-	if (curr == NULL)
-		return NULL;
-	curr->wrr_se.time_slice = curr->wrr_se.weight * TIME_SLICE;
-	/* Return the task pointed by the cursor with updated timeslice */
-	return curr;
-}
-
-/*fair
- * Account for a descheduled task:
- */
-// static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
+// static struct task_struct *pick_next_task_wrr(struct rq *rq)
 // {
-// 	// struct wrr_rq *wrr_rq = &rq->wrr;
-// 	// wrr_rq->curr = NULL;
-// 	//TODO list_move_tail(&prev->wrr_se.run_list, &wrr_rq->run_list);
-// 	// requeue_task_wrr(rq, rq->curr, 0);
-// 	// enqueue_task_wrr(rq, prev, 0);// FIXME 리스트에 추가하고, rq 와 wrr_rq 에 nr 을 올려줘야하나? 지금은 올려줌.
-// 	// 안올려줄경우
-// #ifdef CONFIG_SCHED_DEBUG
-// 	// printk(KERN_DEBUG "[soo] wrr_func put_prev_task_wrr: %d", prev->pid);
-// #endif
-// 	return;
+// 	struct task_struct *curr = rq->wrr.curr;
+//
+// 	if (curr == NULL)
+// 		return NULL;
+// 	curr->wrr_se.time_slice = curr->wrr_se.weight * TIME_SLICE;
+// 	/* Return the task pointed by the cursor with updated timeslice */
+// 	return curr;
 // }
+
+
 static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
 	// //soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
@@ -269,11 +254,13 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
 	// 	return NULL;
 
 	//soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
-	wrr_se = pick_next_wrr_entity(wrr_rq);
+	wrr_se = list_first_entry_or_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
 
 	if (wrr_se != NULL) {
 		p = wrr_se_task_of(wrr_se);
 		p->wrr_se.time_slice = p->wrr_se.weight * TIME_SLICE;
+	} else {
+		p = NULL;
 	}
 
 #ifdef CONFIG_SCHED_DEBUG
@@ -281,6 +268,23 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
 	// print_wrr_list(&rq->wrr);
 #endif
 	return p;
+}
+
+/*fair
+ * Account for a descheduled task:
+ */
+static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
+{
+	// struct wrr_rq *wrr_rq = &rq->wrr;
+	// wrr_rq->curr = NULL;
+	//TODO list_move_tail(&prev->wrr_se.run_list, &wrr_rq->run_list);
+	// requeue_task_wrr(rq, rq->curr, 0);
+	// enqueue_task_wrr(rq, prev, 0);// FIXME 리스트에 추가하고, rq 와 wrr_rq 에 nr 을 올려줘야하나? 지금은 올려줌.
+	// 안올려줄경우
+#ifdef CONFIG_SCHED_DEBUG
+	// printk(KERN_DEBUG "[soo] wrr_func put_prev_task_wrr: %d", prev->pid);
+#endif
+	return;
 }
 
 static int find_lowest_rq(struct task_struct *p)
@@ -434,45 +438,81 @@ static void set_curr_task_wrr(struct rq *rq)
 	return;
 }
 
-static void update_curr_wrr(struct rq *rq)
-{
-	struct task_struct *curr;
-	struct sched_wrr_entity *se;
-  struct list_head *rq_list;
-  struct list_head *se_list;
-  struct list_head *next;
-  struct wrr_rq *wrr_rq;
+// static void update_curr_wrr(struct rq *rq)
+// {
+// 	struct task_struct *curr;
+// 	struct sched_wrr_entity *se;
+//   struct list_head *rq_list;
+//   struct list_head *se_list;
+//   struct list_head *next;
+//   struct wrr_rq *wrr_rq;
+//
+//   wrr_rq = &rq->wrr;
+//
+// 	raw_spin_lock(&wrr_rq->lock);
+//
+//   rq_list = wrr_rq_list(wrr_rq);
+//
+// 	if (rq->wrr.curr == NULL) {
+// 		raw_spin_unlock(&wrr_rq->lock);
+// 		return;
+// 	}
+// 	curr = rq->wrr.curr;
+// 	se = &curr->wrr_se;
+// 	se_list = &se->run_list;
+//
+// 	/* Decrease the time slice of currently running task until it reaches zero */
+// 	if (--se->time_slice) {
+// 		raw_spin_unlock(&wrr_rq->lock);
+// 		return;
+// 	}
+//
+// 	if (se_list->next != se_list->prev) { /* < If more than one element in the list, move the cursor to the next task and resched */
+// 		next = se_list->next;
+// 		if (next == &wrr_rq->run_list)
+// 			next = next->next;
+// 		wrr_rq->curr = wrr_se_task_of(list_entry(next, struct sched_wrr_entity, run_list));
+// 		set_tsk_need_resched(curr);
+// 	} else
+// 		se->time_slice = se->weight * TIME_SLICE; /* < Else, refill the current task's time_slice */
+//
+// 	raw_spin_unlock(&wrr_rq->lock);
+// }
 
-  wrr_rq = &rq->wrr;
+static void update_curr_wrr(struct rq *rq){
+	struct task_struct *curr;
+	struct wrr_rq *wrr_rq;
+	struct sched_wrr_entity *wrr;
+	// unsigned int curr_task_prev_time_slice;
+	// unsigned int curr_task_updated_time_slice;
+
+	wrr_rq = &rq->wrr;
 
 	raw_spin_lock(&wrr_rq->lock);
+	wrr = list_first_entry_or_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
 
-  rq_list = wrr_rq_list(wrr_rq);
+	if (wrr != NULL) {
+		curr = wrr_se_task_of(wrr);
 
-	if (rq->wrr.curr == NULL) {
-		raw_spin_unlock(&wrr_rq->lock);
-		return;
+		// curr_task_prev_time_slice = wrr->time_slice;
+		// curr_task_updated_time_slice = curr_task_updated_time_slice - 1;
+		wrr->time_slice--;
+		// printk(KERN_DEBUG "[soo] wrr->time_slice: %u", wrr->time_slice);
+
+		if (wrr->time_slice == 0){
+			struct list_head *temp = &wrr->run_list;
+			if(temp->next != &wrr_rq->run_list) {
+				// printk(KERN_DEBUG "[soo] set_tsk_need_resched: %d, %u", curr->pid,  wrr->weight);
+				set_tsk_need_resched(curr);
+			} else {
+				wrr->time_slice = wrr->weight * TIME_SLICE;
+			}
+		}
+
 	}
-	curr = rq->wrr.curr;
-	se = &curr->wrr_se;
-	se_list = &se->run_list;
-
-	/* Decrease the time slice of currently running task until it reaches zero */
-	if (--se->time_slice) {
-		raw_spin_unlock(&wrr_rq->lock);
-		return;
-	}
-
-	if (se_list->next != se_list->prev) { /* < If more than one element in the list, move the cursor to the next task and resched */
-		next = se_list->next;
-		if (next == &wrr_rq->run_list)
-			next = next->next;
-		wrr_rq->curr = wrr_se_task_of(list_entry(next, struct sched_wrr_entity, run_list));
-		set_tsk_need_resched(curr);
-	} else
-		se->time_slice = se->weight * TIME_SLICE; /* < Else, refill the current task's time_slice */
 
 	raw_spin_unlock(&wrr_rq->lock);
+	return;
 }
 
 
