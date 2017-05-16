@@ -98,38 +98,26 @@
 int sys_sched_setweight(pid_t pid, int weight)
 {
 	struct task_struct *p;
-	int delta;
-	struct rq *rq;
-	kuid_t root_uid = KUIDT_INIT(0);
 
 	if (weight < 1 || weight > 20) {
 		return -EINVAL;
 	}
 
 	if (pid == 0) {
-		/* set calling process weight */
 		p = current;
 	} else {
-		if (!uid_eq(current->cred->euid, root_uid)) {
-			return -EINVAL;
-		}
 		p = pid_task(find_vpid(pid), PIDTYPE_PID);
-		if (p == NULL) {
-			return -EINVAL;
-		}
 	}
-
-	if (p->policy != SCHED_WRR)
-	return -EINVAL;
-
-	delta = p->wrr_se.weight - weight;
-	if (!uid_eq(current->cred->euid, root_uid) && delta < 0) {
+	if (p == NULL) {
 		return -EINVAL;
 	}
 
+	if (!wrr_policy(p->policy))
+		return -EINVAL;
+
+
+	task_rq(p)->wrr.total_weight += weight - p->wrr_se.weight;
 	p->wrr_se.weight = weight;
-	rq = cpu_rq(task_cpu(p));
-	rq->wrr.total_weight -= delta;
 
 	return 0;
 }
@@ -146,13 +134,13 @@ int sys_sched_getweight(pid_t pid)
 		p = current;
 	} else {
 		p = pid_task(find_vpid(pid), PIDTYPE_PID);
-		if (p == NULL) {
-			return -EINVAL;
-		}
 	}
-	if (p->policy != SCHED_WRR) {
+	if (p == NULL) {
 		return -EINVAL;
 	}
+
+	if (!wrr_policy(p->policy))
+		return -EINVAL;
 
 	return p->wrr_se.weight;
 }
