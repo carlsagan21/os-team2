@@ -482,30 +482,31 @@ static void set_curr_task_wrr(struct rq *rq)
 static void update_curr_wrr(struct rq *rq){
 	struct task_struct *curr;
 	struct wrr_rq *wrr_rq;
-	struct sched_wrr_entity *wrr;
+	struct sched_wrr_entity *wrr_se;
 	// unsigned int curr_task_prev_time_slice;
 	// unsigned int curr_task_updated_time_slice;
 
 	wrr_rq = &rq->wrr;
 
 	raw_spin_lock(&wrr_rq->lock);
-	wrr = list_first_entry_or_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
+	wrr_se = list_first_entry_or_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
 
-	if (wrr != NULL) {
-		curr = wrr_se_task_of(wrr);
+	if (wrr_se != NULL) {
+		curr = wrr_se_task_of(wrr_se);
 
 		// curr_task_prev_time_slice = wrr->time_slice;
 		// curr_task_updated_time_slice = curr_task_updated_time_slice - 1;
-		wrr->time_slice--;
+		wrr_se->time_slice--;
 		// printk(KERN_DEBUG "[soo] wrr->time_slice: %u", wrr->time_slice);
 
-		if (wrr->time_slice == 0){
-			struct list_head *temp = &wrr->run_list;
-			if(temp->next != &wrr_rq->run_list) {
+		if (wrr_se->time_slice == 0){
+			struct list_head *curr_list_head = &wrr_se->run_list;
+			if(curr_list_head->next != &wrr_rq->run_list) {
 				// printk(KERN_DEBUG "[soo] set_tsk_need_resched: %d, %u", curr->pid,  wrr->weight);
+				list_move_tail(curr_list_head, &wrr_rq->run_list);
 				set_tsk_need_resched(curr);
 			} else {
-				wrr->time_slice = wrr->weight * TIME_SLICE;
+				wrr_se->time_slice = wrr_se->weight * TIME_SLICE;
 			}
 		}
 
