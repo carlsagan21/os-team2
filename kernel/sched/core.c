@@ -187,10 +187,19 @@ static sched_wrr_entity get_wrr_sched_entity_to_be_load_balanced(struct rq* max_
 
 }
 
-static void adjust_wrr_sched_entity_from_max_rq_to_min_rq(strcut rq* max_rq, struct rq* min_rq, struct sched_wrr_entity* target){
+static void adjust_wrr_sched_entity_from_max_rq_to_min_rq(strcut rq *max_rq, struct rq *min_rq, struct sched_wrr_entity *target) {
+	double_rq_lock(max_rq, min_rq);
+
 	// step 1 : dequeue
+	dequeue_task(max_rq, mp, 0);
+
+	set_task_cpu(mp, min_rq->cpu);
 	// step 2 : enqueue
+
+	enqueue_task(min_rq, mp, 0);
 	// step 3 : other operations
+
+	double_rq_unlock(max_rq, min_rq);
 }
 
 static void load_balance_wrr(void /*struct rq *rq*/){
