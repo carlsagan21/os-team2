@@ -59,10 +59,15 @@ static void
 enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct wrr_rq *wrr_rq = &rq->wrr;
+	struct sched_wrr_entity *wrr_se;
+
 	raw_spin_lock(&wrr_rq->lock);
-	struct sched_wrr_entity *wrr_se = &p->wrr_se;
+
+	wrr_se = &p->wrr_se;
 
 	list_add_tail(&wrr_se->run_list, &wrr_rq->run_list);
+
+	// wrr_rq->wrr_nr_running++;
 
 	inc_nr_running(rq);
 	wrr_rq->total_weight += wrr_se->weight;
@@ -82,8 +87,11 @@ enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct wrr_rq *wrr_rq = &rq->wrr;
+	struct sched_wrr_entity *wrr_se;
+
 	raw_spin_lock(&wrr_rq->lock);
-	struct sched_wrr_entity *wrr_se = &p->wrr_se;
+
+	wrr_se = &p->wrr_se;
 
 	list_del_init(&wrr_se->run_list);
 
@@ -183,26 +191,27 @@ static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 	return;
 }
 
-static int get_min_rq(struct task_struct *p)
+static int find_lowest_rq(struct task_struct *p)
 {
-	int cpu;
-	struct rq *rq;
-	int best_cpu;
-	unsigned long best_weight;
-	struct wrr_rq *wrr;
+	int cpu, min_cpu = -1;
+	struct wrr_rq *cpu_wrr_rq, *min_wrr_rq;
 
-	best_cpu = -1;
+	min_cpu = task_cpu(p); //soo 캐쉬의 이점을 살리기 위해 현재 cpu 로 초기화.
+	min_wrr_rq = &cpu_rq(min_cpu)->wrr;
 
 	for_each_online_cpu(cpu) {
-		rq = cpu_rq(cpu);
-		wrr = &rq->wrr;
-		if ((best_cpu == -1 || wrr->total_weight < best_weight) &&
-				cpumask_test_cpu(cpu, tsk_cpus_allowed(p))) {
-			best_cpu = cpu;
-			best_weight = wrr->total_weight;
+		cpu_wrr_rq = &cpu_rq(cpu)->wrr;
+
+		if (
+			min_wrr_rq->total_weight > cpu_wrr_rq->total_weight &&
+			cpumask_test_cpu(cpu, tsk_cpus_allowed(p))
+		) {
+			// min 변경
+			min_cpu = cpu;
+			min_wrr_rq = &cpu_rq(cpu)->wrr;
 		}
 	}
-	return best_cpu;
+	return min_cpu;
 }
 
 /*fair
@@ -227,24 +236,29 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 // #endif
 // 	return prev_cpu;
 
-	struct rq *rq;
-	int cpu;
-	int target;
+	// struct rq *rq;
+	int prev_cpu, next_cpu, target;
 
-	cpu = task_cpu(p);
+	next_cpu = prev_cpu = task_cpu(p);
+
 	if (p->nr_cpus_allowed == 1)
-		return cpu;
+		return prev_cpu;
 
-	rq = cpu_rq(cpu);
+	//TODO soo need this?
+	/* For anything but wake ups, just return the task_cpu */
+	// if (sd_flag != SD_BALANCE_WAKE && sd_flag != SD_BALANCE_FORK)
+	// 	return prev_cpu;
+
+	// rq = cpu_rq(prev_cpu);
 
 	rcu_read_lock();
 
-	target = get_min_rq(p);
+	target = find_lowest_rq(p);
 	if (target != -1)
-		cpu = target;
+		next_cpu = target;
 	rcu_read_unlock();
 
-	return cpu;
+	return next_cpu;
 }
 
 //soo migration 상황에서 불리는 것. rt 에 없음. 일단 제외시켜놓는다.
