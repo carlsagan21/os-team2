@@ -173,7 +173,67 @@ static int is_migratable(struct rq *rq, struct task_struct *p, int dest_cpu)
 	return 1;
 }
 
+static void set_wrr_max_and_min_rq(struct rq* max_rq, struct rq* min_rq){
+	int cpu;
+	struct rq* cpu_rq;
+	struct wrr_rq* wrr_rq;
+
+	//max_rq, min_rq total_weight initialization needed
+
+	for_each_online_cpu(cpu){
+		cpu_rq = cpu_rq(cpu);
+		wrr_rq = cpu_rq->wrr;
+		if(max_rq->total_weight < wrr_rq->total_weight)
+			max_rq = wrr_rq;
+		if(min_rq-> total_weight > wrr_rq->total_weight)
+			min_rq = wrr_rq;
+	}
+
+}
+
+static sched_wrr_entity get_wrr_sched_entity_to_be_load_balanced(struct rq* max_rq, struct rq* min_rq){
+	struct sched_wrr_entity* wrr_se;
+	// case 1 : task currently working on max_rq cpu
+	// case 2 : task is allocated into specific cpu
+	// case 3 : max_rq->total_weight - wrr_se->weight > min_rq->total_weight + wrr_se->weight
+
+}
+
+static void adjust_wrr_sched_entity_from_max_rq_to_min_rq(strcut rq* max_rq, struct rq* min_rq, struct sched_wrr_entity* target){
+	// step 1 : dequeue
+	// step 2 : enqueue
+	// step 3 : other operations
+}
+
+static void load_balance_wrr(void /*struct rq *rq*/){
+
+	//NOTE NOTE NOTE lock unlock handling
+
+	struct rq* max_rq, min_rq;
+	struct sched_wrr_entity target_to_be_load_balanced;
+
+	set_wrr_max_and_min_rq(max_rq,min_rq);
+
+	if(max_rq == min_rq)
+		//NOTE exception handling
+
+	target_to_be_load_balanced = get_wrr_sched_entity_to_be_load_balanced(max_rq,min_rq);
+
+	adjust_wrr_sched_entity_from_max_rq_to_min_rq(max_rq,min_rq,&target_to_be_load_balanced);
+
+
+}
+
+
+
+
+
+
+
+
+
 /*load_balance*/
+/*
 static void load_balance_wrr(struct rq *rq)
 {
 	int cpu;
@@ -185,7 +245,8 @@ static void load_balance_wrr(struct rq *rq)
 	struct wrr_rq *wrr;
 	struct list_head *list;
 	struct sched_wrr_entity *se, *n;
-	struct task_struct *mp; /* migrating task */
+	struct task_struct *mp; // migrating task
+
 	unsigned int mweight;
 	struct task_struct *p;
 	unsigned long now;
@@ -202,7 +263,7 @@ static void load_balance_wrr(struct rq *rq)
 
 	spin_unlock(&balance_lock);
 
-	/*find min, max rq*/
+	/.find min, max rq
 	rcu_read_lock();
 	for_each_online_cpu(cpu) {
 		temp = cpu_rq(cpu);
@@ -251,7 +312,7 @@ static void load_balance_wrr(struct rq *rq)
 
 	double_rq_unlock(max_rq, min_rq);
 }
-
+*/
 
 void start_bandwidth_timer(struct hrtimer *period_timer, ktime_t period)
 {
