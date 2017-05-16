@@ -1,46 +1,53 @@
 # os-team2
 
-## CHANGE LOG
+## PROJ3: WRR SCHEDULER
+
+### 3 Big Challenges
+
+1. 새로운 스케줄러가 기존 스케줄러들 사이에 잘 자리잡게 하기.  
+	1) syscall implements
+2. 기본 스케줄러로 동작하게 하기.
+3. WRR / BALANCING 등 정책 구현하기.  
+	1) WRR  
+	2) cpu allocation  
+	3) load balancing  
 
 
+##### 1. 새로운 스케줄러 구현하기
+
+1) syscalls
+
+380, 381 번으로 sched_setweight / sched_getweight 시스템 콜을 구현합니다. 이 단계에서 구현해야 하는 이유는, 기본 스케줄러로 WRR 을 세팅하기 이전에도 스케줄러를 테스트해야하는데, sched_setweight 을 이용하여 WRR 스케줄러로 넣어줄 수 있기 때문입니다.
+시스템콜 구현 방법은 프로젝트1 부터 이어져 온 방법과 동일합니다.
+
+2) wrr_rq
+
+`kernel/sched/sched.h` 에 정의됩니다. task 안의 sched_wrr_entity 의 리스트의 더미헤드로서 기능합니다. total_weight 도 보관하여 load balancing 에 참조됩니다. 리스트를 돌 때에 lock 을 두어 잡습니다. 읽기보다도 수정이 빈번하게 발생하므로, 그리고 짧은 시간동안만 발생하므로, rwlock 이나 mutex 보다 일반 spinlock 으로 잡습니다.
+
+3) sched_wrr_entity
+`include/linux/sched.h` 에 정의되고 list_head, weight, remaining time 을 가집니다. task_struct 내부에 들어가게 됩니다. 스케줄 리스트의 핵심입니다.
+
+4) wrr_sched_class
+enqueue_task 등의 스케줄러 다형 함수들을 내부적으로 구현해야 합니다. 정책 구현에 핵심적인 역할을 담당하며, 내부함수를 구현하지 않으면 스케줄러가 FIFO 로 동작함을 알 수 있습니다.
+enqueue_task, dequeue_task, pick_next_task, task_tick, task_fork 등이 핵심 함수로서 각각 자료구조에 맞게 구현되어야 합니다. 자세한 사항은 "3. 정책구현하기" 에서 설명합니다.
+
+5) core.c
+많은 코드들이 rt or cfs 식으로 구현되어 있고, cfs 를 기본스케줄러라고 가정한 코드가 많습니다. 이 부분들을 다 찾아서 고쳐줘야 합니다. 파일에서 `fair`, `SCHED_NORMAL`, `rt_prio()`, `task_has_rt_policy()` 등을 검색하면 왠만한 경우는 다 잡아낼 수 있습니다.
+
+##### 2. 기본 스케줄 화 하기
+`include/linux/init_task.h` 에서 default policy 를 SCHED_WRR 로 설정하고, `kernel/kthread.c` 에서 SCHED_NORMAL 을 SCHED_WRR 로 바꿔줍니다.
+
+##### 3. 정책 구현하기
 
 ## shell scripts
 -   `./build`: build && flash && console
 -   `./build $1`: build && arm-linux-gnueabi-gcc -I./include test/$1.c -o test/$1 && flash && console
 -   `./lint`: scripts/checkpatch.pl --max-line-length=200 -f arch/arm/kernel/\*rot\*.c
+-   `ARTIK$ ./sdb`: sdb 를 켭니다
+-   `ARTIK$ ./dmes`: sdb 를 켜고 dmesg -w 를 실행합니다.
 
 `./build` 를 실행하기 전에 artik에서 thordown 을 켜줍시다.  
 `checkpatch` 는 4.11 버전으로 되어있습니다.
-
-## test already perfect
--   thordown
-
-
--   build && flash && console
--   root
--   tizen
--   ./test/rotd
--   dmesg | grep degree
-
-
-## if you recompile test
--   thordown
-
-
--   build && arm-linux-gnueabi-gcc -I./include test/test.c -o test/test && flash && console
-
--   root
--   tizen
--   direct_set_debug.sh --sdb-set
--   ctl+a d
-
-
--   root && push test/test /root/test && console
-
-
--   root
--   tizen
--   ./test/test && dmesg
 
 
 ## test with checkpatch.pl
