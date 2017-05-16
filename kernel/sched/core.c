@@ -97,7 +97,7 @@
  */
 int sys_sched_setweight(pid_t pid, int weight)
 {
-	printk(KERN_DEBUG "[soo] sys_sched_setweight");
+	// printk(KERN_DEBUG "[soo] sys_sched_setweight");
 	struct task_struct *p;
 	int delta;
 	struct rq *rq;
@@ -141,7 +141,7 @@ int sys_sched_setweight(pid_t pid, int weight)
  */
 int sys_sched_getweight(pid_t pid)
 {
-	printk(KERN_DEBUG "[soo] sys_sched_getweight");
+	// printk(KERN_DEBUG "[soo] sys_sched_getweight");
 	struct task_struct *p;
 
 	if (pid == 0) {
