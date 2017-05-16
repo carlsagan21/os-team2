@@ -15,7 +15,6 @@ extern void init_wrr_rq(struct wrr_rq *wrr_rq, struct rq *rq)
 {
 	wrr_rq->total_weight = 0;
 	INIT_LIST_HEAD(&wrr_rq->run_list);
-	// wrr_rq->curr = NULL;
 	raw_spin_lock_init(&wrr_rq->lock);
 }
 
@@ -46,58 +45,6 @@ static inline struct wrr_rq *wrr_rq_of_wrr_se(struct sched_wrr_entity *wrr_se)
 	return &rq->wrr;
 }
 
-static inline struct list_head *wrr_rq_list(struct wrr_rq *wrr_rq)
-{
-	return &wrr_rq->run_list;
-}
-
-static inline bool is_wrr_rq_empty(struct wrr_rq *rq)
-{
-	return rq->run_list.next == &rq->run_list;
-}
-
-
-// static void enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
-// {
-// 	struct wrr_rq *wrr;
-// 	struct sched_wrr_entity *se;
-// 	struct list_head *se_list;
-// 	struct list_head *rq_list;
-// 	struct list_head *curr_list;
-// 	struct sched_wrr_entity *curr_se;
-//
-// 	wrr = &rq->wrr;
-//
-// 	raw_spin_lock(&wrr->lock);
-//
-// 	se = &p->wrr_se;
-// 	se_list = &se->run_list;
-// 	rq_list = wrr_rq_list(wrr);
-//
-//
-// 	if (wrr->curr == NULL) {
-// 		/*
-// 		 * If the list is currently empty,
-// 		 * set the cursor to the newly added task and add the task to the list
-// 		 */
-// 		wrr->curr = p;
-// 		list_add_tail(se_list, rq_list);
-// 	} else {
-// 		/*
-// 		 * If the list is not empty,
-// 		 * simply add the task right before the cursor
-// 		 */
-// 		curr_se = &wrr->curr->wrr_se;
-// 		curr_list = &curr_se->run_list;
-//
-// 		list_add_tail(se_list, curr_list);
-// 	}
-//
-// 	wrr->total_weight += se->weight;
-// 	p->on_rq = 1;
-//
-// 	raw_spin_unlock(&wrr->lock);
-// }
 
 //soo class methods
 /*rt
@@ -127,44 +74,6 @@ enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 	raw_spin_unlock(&wrr_rq->lock);
 }
 
-// static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
-// {
-// 	struct list_head *se_list;
-// 	struct list_head *rq_list;
-// 	struct wrr_rq *wrr;
-// 	struct sched_wrr_entity *se;
-// 	struct list_head *next_curr;
-//
-// 	wrr = &rq->wrr;
-//
-// 	raw_spin_lock(&wrr->lock);
-//
-// 	se = &p->wrr_se;
-// 	se_list = &se->run_list;
-// 	rq_list = wrr_rq_list(wrr);
-//
-// 	next_curr = se_list->next;
-//
-// 	list_del_init(se_list);
-//
-// 	if (is_wrr_rq_empty(wrr)) {
-// 		/* < If the run queue is empty, set the cursor to null */
-// 		wrr->curr = NULL;
-// 	} else if (p == wrr->curr) {
-// 		/*
-// 		 * Else if the deleting task is the task pointed by the cursor,
-// 		 * update the cursor appropriately (considering the dummy head)
-// 		 */
-// 		if (next_curr == rq_list)
-// 			next_curr = next_curr->next;
-// 		wrr->curr = wrr_se_task_of(list_entry(next_curr, struct sched_wrr_entity, run_list));
-// 	}
-//
-// 	wrr->total_weight -= se->weight;
-// 	p->on_rq = 0;
-//
-// 	raw_spin_unlock(&wrr->lock);
-// }
 /*fair
  * The dequeue_task method is called before nr_running is
  * decreased. We remove the task from the rbtree and
@@ -189,7 +98,6 @@ static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 #endif
 	raw_spin_unlock(&wrr_rq->lock);
 }
-
 
 /*fair
  * sched_yield() is very simple
@@ -230,21 +138,9 @@ static void check_preempt_curr_wrr(struct rq *rq, struct task_struct *p, int fla
 	return;
 }
 
-// static struct task_struct *pick_next_task_wrr(struct rq *rq)
-// {
-// 	struct task_struct *curr = rq->wrr.curr;
-//
-// 	if (curr == NULL)
-// 		return NULL;
-// 	curr->wrr_se.time_slice = curr->wrr_se.weight * TIME_SLICE;
-// 	/* Return the task pointed by the cursor with updated timeslice */
-// 	return curr;
-// }
-
-
 static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
-	// //soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
+	//soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
 	struct sched_wrr_entity *wrr_se;
 	struct wrr_rq *wrr_rq;
 	struct task_struct *p = NULL;
@@ -287,7 +183,7 @@ static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
 	return;
 }
 
-static int find_lowest_rq(struct task_struct *p)
+static int get_min_rq(struct task_struct *p)
 {
 	int cpu;
 	struct rq *rq;
@@ -343,7 +239,7 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 
 	rcu_read_lock();
 
-	target = find_lowest_rq(p);
+	target = get_min_rq(p);
 	if (target != -1)
 		cpu = target;
 	rcu_read_unlock();
@@ -351,7 +247,7 @@ select_task_rq_wrr(struct task_struct *p, int sd_flag, int wake_flags)
 	return cpu;
 }
 
-//TODO soo migration 상황에서 불리는 것. rt 에 없음. 일단 제외시켜놓는다.
+//soo migration 상황에서 불리는 것. rt 에 없음. 일단 제외시켜놓는다.
 /*fair
  * Called immediately before a task is migrated to a new cpu; task_cpu(p) and
  * cfs_rq_of(p) references at time of call are still valid and identify the
@@ -438,53 +334,13 @@ static void set_curr_task_wrr(struct rq *rq)
 	return;
 }
 
-// static void update_curr_wrr(struct rq *rq)
-// {
-// 	struct task_struct *curr;
-// 	struct sched_wrr_entity *se;
-//   struct list_head *rq_list;
-//   struct list_head *se_list;
-//   struct list_head *next;
-//   struct wrr_rq *wrr_rq;
-//
-//   wrr_rq = &rq->wrr;
-//
-// 	raw_spin_lock(&wrr_rq->lock);
-//
-//   rq_list = wrr_rq_list(wrr_rq);
-//
-// 	if (rq->wrr.curr == NULL) {
-// 		raw_spin_unlock(&wrr_rq->lock);
-// 		return;
-// 	}
-// 	curr = rq->wrr.curr;
-// 	se = &curr->wrr_se;
-// 	se_list = &se->run_list;
-//
-// 	/* Decrease the time slice of currently running task until it reaches zero */
-// 	if (--se->time_slice) {
-// 		raw_spin_unlock(&wrr_rq->lock);
-// 		return;
-// 	}
-//
-// 	if (se_list->next != se_list->prev) { /* < If more than one element in the list, move the cursor to the next task and resched */
-// 		next = se_list->next;
-// 		if (next == &wrr_rq->run_list)
-// 			next = next->next;
-// 		wrr_rq->curr = wrr_se_task_of(list_entry(next, struct sched_wrr_entity, run_list));
-// 		set_tsk_need_resched(curr);
-// 	} else
-// 		se->time_slice = se->weight * TIME_SLICE; /* < Else, refill the current task's time_slice */
-//
-// 	raw_spin_unlock(&wrr_rq->lock);
-// }
-
-static void update_curr_wrr(struct rq *rq){
-	struct task_struct *curr;
+/*fair
+ * scheduler tick hitting a task of our scheduling class:
+ */
+static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
+{
 	struct wrr_rq *wrr_rq;
 	struct sched_wrr_entity *wrr_se;
-	// unsigned int curr_task_prev_time_slice;
-	// unsigned int curr_task_updated_time_slice;
 
 	wrr_rq = &rq->wrr;
 
@@ -492,19 +348,19 @@ static void update_curr_wrr(struct rq *rq){
 	wrr_se = list_first_entry_or_null(&wrr_rq->run_list, struct sched_wrr_entity, run_list);
 
 	if (wrr_se != NULL) {
-		curr = wrr_se_task_of(wrr_se);
+		if (curr != wrr_se_task_of(wrr_se)) {
+			printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr: %d, %d", curr->pid, wrr_se_task_of(wrr_se)->pid);
+			raw_spin_unlock(&wrr_rq->lock);
+			return;
+		}
 
-		// curr_task_prev_time_slice = wrr->time_slice;
-		// curr_task_updated_time_slice = curr_task_updated_time_slice - 1;
 		wrr_se->time_slice--;
-		// printk(KERN_DEBUG "[soo] wrr->time_slice: %u", wrr->time_slice);
 
 		if (wrr_se->time_slice == 0){
 			struct list_head *curr_list_head = &wrr_se->run_list;
 			if(curr_list_head->next != &wrr_rq->run_list) {
-				// printk(KERN_DEBUG "[soo] set_tsk_need_resched: %d, %u", curr->pid,  wrr->weight);
 				list_move_tail(curr_list_head, &wrr_rq->run_list);
-				set_tsk_need_resched(curr);
+				resched_task(curr);
 			} else {
 				wrr_se->time_slice = wrr_se->weight * TIME_SLICE;
 			}
@@ -513,16 +369,6 @@ static void update_curr_wrr(struct rq *rq){
 	}
 
 	raw_spin_unlock(&wrr_rq->lock);
-	return;
-}
-
-
-/*fair
- * scheduler tick hitting a task of our scheduling class:
- */
-static void task_tick_wrr(struct rq *rq, struct task_struct *curr, int queued)
-{
-  update_curr_wrr(rq);
 #ifdef CONFIG_SCHED_DEBUG
 	// printk(KERN_DEBUG "[soo] wrr_func task_tick_wrr: %d", curr->pid);
 #endif
