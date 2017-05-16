@@ -1,8 +1,6 @@
-# os-team2
+# Weighted Round Robin Scheduler
 
-## PROJ3: WRR SCHEDULER
-
-### 3 Big Challenges
+## 3 Big Challenges of this Project
 
 1. 새로운 스케줄러가 기존 스케줄러들 사이에 잘 자리잡게 하기.  
 	1) syscall implements
@@ -12,8 +10,7 @@
 	2) cpu allocation  
 	3) load balancing  
 
-
-##### 1. 새로운 스케줄러 구현하기
+### 1. 새로운 스케줄러 구현하기
 
 1) syscalls
 
@@ -25,19 +22,38 @@
 `kernel/sched/sched.h` 에 정의됩니다. task 안의 sched_wrr_entity 의 리스트의 더미헤드로서 기능합니다. total_weight 도 보관하여 load balancing 에 참조됩니다. 리스트를 돌 때에 lock 을 두어 잡습니다. 읽기보다도 수정이 빈번하게 발생하므로, 그리고 짧은 시간동안만 발생하므로, rwlock 이나 mutex 보다 일반 spinlock 으로 잡습니다.
 
 3) sched_wrr_entity
+
 `include/linux/sched.h` 에 정의되고 list_head, weight, remaining time 을 가집니다. task_struct 내부에 들어가게 됩니다. 스케줄 리스트의 핵심입니다.
 
 4) wrr_sched_class
+
 enqueue_task 등의 스케줄러 다형 함수들을 내부적으로 구현해야 합니다. 정책 구현에 핵심적인 역할을 담당하며, 내부함수를 구현하지 않으면 스케줄러가 FIFO 로 동작함을 알 수 있습니다.
 enqueue_task, dequeue_task, pick_next_task, task_tick, task_fork 등이 핵심 함수로서 각각 자료구조에 맞게 구현되어야 합니다. 자세한 사항은 "3. 정책구현하기" 에서 설명합니다.
 
 5) core.c
+
 많은 코드들이 rt or cfs 식으로 구현되어 있고, cfs 를 기본스케줄러라고 가정한 코드가 많습니다. 이 부분들을 다 찾아서 고쳐줘야 합니다. 파일에서 `fair`, `SCHED_NORMAL`, `rt_prio()`, `task_has_rt_policy()` 등을 검색하면 왠만한 경우는 다 잡아낼 수 있습니다.
 
-##### 2. 기본 스케줄 화 하기
-`include/linux/init_task.h` 에서 default policy 를 SCHED_WRR 로 설정하고, `kernel/kthread.c` 에서 SCHED_NORMAL 을 SCHED_WRR 로 바꿔줍니다.
+### 2. 기본 스케줄 화 하기
 
-##### 3. 정책 구현하기
+`include/linux/init_task.h` 에서 default policy 를 SCHED_WRR 로 설정하고, `kernel/kthread.c` 에서 SCHED_NORMAL 을 SCHED_WRR 로 바꿔줍니다.
+기존에 `core.c` 에서 fair/cfs 로 기본값이 되어있는 소스 부분들을 체크하여 고쳐줍니다.
+
+### 3. 정책 구현하기
+
+Proj3 was implementing Weighted Round Robin scheduler. We declaired data structures and functions for WRR in wrr.c. The abstract spec of those data structure and functions are following that of RT and CFS. And we also modifyed core.c and sched.h to use wrr in actual linux running. WRR is set to be default scheduler.
+
+#### Data Structure
+We implemented wrr_rq and sched_wrr_entity in sched.h. It works similar with other rq and sched_entity but it follows the policy only for WRR which we implemented. The first element of wrr_rq is the task which is now executing. And sched entity has weight and time_slice as a variable. Weight is the constant number which is set by syscall set_weight(), and time_slice is the variable which reduces as the task is executing through time.
+
+#### Functions
+the main function that works for WRR policy is task_tick_wrr(). It is called by every tick and do next things.
+1) If current task has remaining time slice, it does -1 to time slice.
+2) If time slice of current task became 0, it moves the task to tail by list_move_tail, and calls also resched_task().
+
+#### Load Balancing
+
+
 
 ## shell scripts
 -   `./build`: build && flash && console
