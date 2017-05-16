@@ -41,13 +41,13 @@ Modify default_policy as SCHED_WRR in 'include/linux/init_task.h', and change SC
 
 Proj3 was implementing Weighted Round Robin scheduler. We declaired data structures and functions for WRR in wrr.c. The abstract spec of those data structure and functions are following that of RT and CFS. And we also modifyed core.c and sched.h to use wrr in actual linux running. WRR is set to be default scheduler.
 
-#### Data Structure
-We implemented wrr_rq and sched_wrr_entity in sched.h. It works similar with other rq and sched_entity but it follows the policy only for WRR which we implemented. The first element of wrr_rq is the task which is now executing. And sched entity has weight and time_slice as a variable. Weight is the constant number which is set by syscall set_weight(), and time_slice is the variable which reduces as the task is executing through time.
-
 #### Functions
-the main function that works for WRR policy is task_tick_wrr(). It is called by every tick and do next things.
-1) If current task has remaining time slice, it does -1 to time slice.
-2) If time slice of current task became 0, it moves the task to tail by list_move_tail, and calls also resched_task().
+
+1. task_tick_wrr
+It is called by every tick and do next things. It does 1) If current task has remaining time slice, it does -1 to time slice. 2) If time slice of current task became 0, it moves the task to tail by list_move_tail, and calls also resched_task().
+
+2. task_fork_wrr
+When WRR sched entity is fored, it inherits the parent's weight. So it is implemented in task_fork_wrr.
 
 #### Load Balancing
 
