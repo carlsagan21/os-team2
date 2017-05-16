@@ -57,86 +57,139 @@ static inline bool is_wrr_rq_empty(struct wrr_rq *rq)
 }
 
 
-static void enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
+// static void enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
+// {
+// 	struct wrr_rq *wrr;
+// 	struct sched_wrr_entity *se;
+// 	struct list_head *se_list;
+// 	struct list_head *rq_list;
+// 	struct list_head *curr_list;
+// 	struct sched_wrr_entity *curr_se;
+//
+// 	wrr = &rq->wrr;
+//
+// 	raw_spin_lock(&wrr->lock);
+//
+// 	se = &p->wrr_se;
+// 	se_list = &se->run_list;
+// 	rq_list = wrr_rq_list(wrr);
+//
+//
+// 	if (wrr->curr == NULL) {
+// 		/*
+// 		 * If the list is currently empty,
+// 		 * set the cursor to the newly added task and add the task to the list
+// 		 */
+// 		wrr->curr = p;
+// 		list_add_tail(se_list, rq_list);
+// 	} else {
+// 		/*
+// 		 * If the list is not empty,
+// 		 * simply add the task right before the cursor
+// 		 */
+// 		curr_se = &wrr->curr->wrr_se;
+// 		curr_list = &curr_se->run_list;
+//
+// 		list_add_tail(se_list, curr_list);
+// 	}
+//
+// 	wrr->total_weight += se->weight;
+// 	p->on_rq = 1;
+//
+// 	raw_spin_unlock(&wrr->lock);
+// }
+
+//soo class methods
+/*rt
+ * Adding/removing a task to/from a priority array:
+ */
+/*fair
+ * The enqueue_task method is called before nr_running is
+ * increased. Here we update the fair scheduling stats and
+ * then put the task into the rbtree:
+ */
+static void
+enqueue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
-	struct wrr_rq *wrr;
-	struct sched_wrr_entity *se;
-	struct list_head *se_list;
-	struct list_head *rq_list;
-	struct list_head *curr_list;
-	struct sched_wrr_entity *curr_se;
+	struct wrr_rq *wrr_rq = &rq->wrr;
+	raw_spin_lock(&wrr_rq->lock);
+	struct sched_wrr_entity *wrr_se = &p->wrr_se;
 
-	wrr = &rq->wrr;
+	list_add_tail(&wrr_se->run_list, &wrr_rq->run_list);
 
-	raw_spin_lock(&wrr->lock);
-
-	se = &p->wrr_se;
-	se_list = &se->run_list;
-	rq_list = wrr_rq_list(wrr);
-
-
-	if (wrr->curr == NULL) {
-		/*
-		 * If the list is currently empty,
-		 * set the cursor to the newly added task and add the task to the list
-		 */
-		wrr->curr = p;
-		list_add_tail(se_list, rq_list);
-	} else {
-		/*
-		 * If the list is not empty,
-		 * simply add the task right before the cursor
-		 */
-		curr_se = &wrr->curr->wrr_se;
-		curr_list = &curr_se->run_list;
-
-		list_add_tail(se_list, curr_list);
-	}
-
-	wrr->total_weight += se->weight;
+	inc_nr_running(rq);
+	wrr_rq->total_weight += wrr_se->weight;
 	p->on_rq = 1;
-
-	raw_spin_unlock(&wrr->lock);
+#ifdef CONFIG_SCHED_DEBUG
+	// printk(KERN_DEBUG "[soo] wrr_func enqueue_task_wrr: %d", p->pid);
+	// print_wrr_list(wrr_rq);
+#endif
+	raw_spin_unlock(&wrr_rq->lock);
 }
 
+// static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
+// {
+// 	struct list_head *se_list;
+// 	struct list_head *rq_list;
+// 	struct wrr_rq *wrr;
+// 	struct sched_wrr_entity *se;
+// 	struct list_head *next_curr;
+//
+// 	wrr = &rq->wrr;
+//
+// 	raw_spin_lock(&wrr->lock);
+//
+// 	se = &p->wrr_se;
+// 	se_list = &se->run_list;
+// 	rq_list = wrr_rq_list(wrr);
+//
+// 	next_curr = se_list->next;
+//
+// 	list_del_init(se_list);
+//
+// 	if (is_wrr_rq_empty(wrr)) {
+// 		/* < If the run queue is empty, set the cursor to null */
+// 		wrr->curr = NULL;
+// 	} else if (p == wrr->curr) {
+// 		/*
+// 		 * Else if the deleting task is the task pointed by the cursor,
+// 		 * update the cursor appropriately (considering the dummy head)
+// 		 */
+// 		if (next_curr == rq_list)
+// 			next_curr = next_curr->next;
+// 		wrr->curr = wrr_se_task_of(list_entry(next_curr, struct sched_wrr_entity, run_list));
+// 	}
+//
+// 	wrr->total_weight -= se->weight;
+// 	p->on_rq = 0;
+//
+// 	raw_spin_unlock(&wrr->lock);
+// }
+/*fair
+ * The dequeue_task method is called before nr_running is
+ * decreased. We remove the task from the rbtree and
+ * update the fair scheduling stats:
+ */
 static void dequeue_task_wrr(struct rq *rq, struct task_struct *p, int flags)
 {
-	struct list_head *se_list;
-	struct list_head *rq_list;
-	struct wrr_rq *wrr;
-	struct sched_wrr_entity *se;
-	struct list_head *next_curr;
+	struct wrr_rq *wrr_rq = &rq->wrr;
+	raw_spin_lock(&wrr_rq->lock);
+	struct sched_wrr_entity *wrr_se = &p->wrr_se;
 
-	wrr = &rq->wrr;
+	list_del_init(&wrr_se->run_list);
 
-	raw_spin_lock(&wrr->lock);
+	// wrr_rq->wrr_nr_running--;
 
-	se = &p->wrr_se;
-	se_list = &se->run_list;
-	rq_list = wrr_rq_list(wrr);
-
-	next_curr = se_list->next;
-
-	list_del_init(se_list);
-
-	if (is_wrr_rq_empty(wrr)) {
-		/* < If the run queue is empty, set the cursor to null */
-		wrr->curr = NULL;
-	} else if (p == wrr->curr) {
-		/*
-		 * Else if the deleting task is the task pointed by the cursor,
-		 * update the cursor appropriately (considering the dummy head)
-		 */
-		if (next_curr == rq_list)
-			next_curr = next_curr->next;
-		wrr->curr = wrr_se_task_of(list_entry(next_curr, struct sched_wrr_entity, run_list));
-	}
-
-	wrr->total_weight -= se->weight;
+	dec_nr_running(rq);
+	wrr_rq->total_weight -= wrr_se->weight;
 	p->on_rq = 0;
-
-	raw_spin_unlock(&wrr->lock);
+#ifdef CONFIG_SCHED_DEBUG
+	// printk(KERN_DEBUG "[soo] wrr_func dequeue_task_wrr: %d", p->pid);
+	// print_wrr_list(&rq->wrr);
+#endif
+	raw_spin_unlock(&wrr_rq->lock);
 }
+
 
 /*fair
  * sched_yield() is very simple
@@ -191,18 +244,43 @@ static struct task_struct *pick_next_task_wrr(struct rq *rq)
 /*fair
  * Account for a descheduled task:
  */
-static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
+// static void put_prev_task_wrr(struct rq *rq, struct task_struct *prev)
+// {
+// 	// struct wrr_rq *wrr_rq = &rq->wrr;
+// 	// wrr_rq->curr = NULL;
+// 	//TODO list_move_tail(&prev->wrr_se.run_list, &wrr_rq->run_list);
+// 	// requeue_task_wrr(rq, rq->curr, 0);
+// 	// enqueue_task_wrr(rq, prev, 0);// FIXME 리스트에 추가하고, rq 와 wrr_rq 에 nr 을 올려줘야하나? 지금은 올려줌.
+// 	// 안올려줄경우
+// #ifdef CONFIG_SCHED_DEBUG
+// 	// printk(KERN_DEBUG "[soo] wrr_func put_prev_task_wrr: %d", prev->pid);
+// #endif
+// 	return;
+// }
+static struct task_struct *pick_next_task_wrr(struct rq *rq)
 {
-	// struct wrr_rq *wrr_rq = &rq->wrr;
-	// wrr_rq->curr = NULL;
-	//TODO list_move_tail(&prev->wrr_se.run_list, &wrr_rq->run_list);
-	// requeue_task_wrr(rq, rq->curr, 0);
-	// enqueue_task_wrr(rq, prev, 0);// FIXME 리스트에 추가하고, rq 와 wrr_rq 에 nr 을 올려줘야하나? 지금은 올려줌.
-	// 안올려줄경우
+	// //soo 여기서 printk 하면 너무 많이 불려서 커널 패닉
+	struct sched_wrr_entity *wrr_se;
+	struct wrr_rq *wrr_rq;
+	struct task_struct *p = NULL;
+	wrr_rq = &rq->wrr;
+
+	// if (!wrr_rq->wrr_nr_running)
+	// 	return NULL;
+
+	//soo do while 은 group 이 있으면 필요함. leaf 를 찾아 내려가야 하기 때문.
+	wrr_se = pick_next_wrr_entity(wrr_rq);
+
+	if (wrr_se != NULL) {
+		p = wrr_se_task_of(wrr_se);
+		p->wrr_se.time_slice = p->wrr_se.weight * TIME_SLICE;
+	}
+
 #ifdef CONFIG_SCHED_DEBUG
-	// printk(KERN_DEBUG "[soo] wrr_func put_prev_task_wrr: %d", prev->pid);
+	// printk(KERN_DEBUG "[soo] wrr_func pick_next_task_wrr2: %d", wrr_se_task_of(wrr_se)->pid);
+	// print_wrr_list(&rq->wrr);
 #endif
-	return;
+	return p;
 }
 
 static int find_lowest_rq(struct task_struct *p)
