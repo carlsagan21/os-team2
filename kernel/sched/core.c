@@ -166,31 +166,56 @@ static void set_wrr_max_and_min_rq(struct rq* max_rq, struct rq* min_rq){
 	struct rq* cpu_rq;
 	struct wrr_rq* wrr_rq;
 
-	//max_rq, min_rq total_weight initialization needed
+	//intialize max_rq, min_rq to compare with CPU's run queues
+	max_rq = min_rq = NULL;
 
 	for_each_online_cpu(cpu){
-		cpu_rq = cpu_rq(cpu);
-		wrr_rq = cpu_rq->wrr;
-		if(max_rq->total_weight < wrr_rq->total_weight)
+		cpu_rq = &cpu_rq(cpu);
+		wrr_rq = &cpu_rq->wrr;
+		if( max_rq == NULL | max_rq->total_weight < wrr_rq->total_weight)
 			max_rq = wrr_rq;
-		if(min_rq-> total_weight > wrr_rq->total_weight)
+		if( min_rq == NULL | min_rq-> total_weight > wrr_rq->total_weight)
 			min_rq = wrr_rq;
 	}
 
 }
 
-static sched_wrr_entity get_wrr_sched_entity_to_be_load_balanced(struct rq* max_rq, struct rq* min_rq){
-	struct sched_wrr_entity* wrr_se;
-	// case 1 : task currently working on max_rq cpu
-	// case 2 : task is allocated into specific cpu
-	// case 3 : max_rq->total_weight - wrr_se->weight > min_rq->total_weight + wrr_se->weight
+static task_struct get_wrr_sched_entity_to_be_load_balanced(struct rq* max_rq, struct rq* min_rq){
+	struct sched_wrr_entity* wrr_se_temp;
+	struct sched_wrr_entity* wrr_se_temp_safe;
+	struct sched_wrr_entity* temp= &max_rq ->wrr;
+	struct task_struct* task_temp;
+	struct sched_wrr_entity* load_balanced_res;
 
+	load_balanced_res = NULL;
+
+	list_for_each_entry_safe(wrr_se_temp, wrr_se_temp_safe,&temp->run_list ,struct sched_wrr_entity){
+		task_temp = container_of(wrr_se_temp, struct task_struct, wrr_se);
+		// case 1 : task currently working on max_rq cpu
+		int task_unmigrateable_due_to_current_running = (task_temp == max_rq ->curr);
+		// case 2 : task is allocated into specific cpu
+		int is_task_allowed_to_cpu = cpumask_test_cpu(cpu_of(max_rq),tsk_cpus_allowed(task_temp));
+		// case 3 : max_rq->total_weight - wrr_se->weight > min_rq->total_weight + wrr_se->weight
+		int max_and_min_rq_not_reverted  = !!(max_rq->total_weight - wrr_se_temp->weight > min_rq->total_weight + wrr_se_temp->weight);
+		if(!task_unmigrateable_due_to_current_running && is_task_allowed_to_cpu && max_and_min_rq_not_reverted){
+			if(load_balanced_res == NULL || load_balanced_res->weight < wrr_se_temp->weight){
+				load_balanced_res = wrr_se_temp;
+			}else{
+				continue;
+			}
+		}
+	}
+
+	return container_of(load_balanced_res,struct task_struct,wrr_se);
 }
 
-static void adjust_wrr_sched_entity_from_max_rq_to_min_rq(strcut rq* max_rq, struct rq* min_rq, struct sched_wrr_entity* target){
+static void adjust_wrr_sched_entity_from_max_rq_to_min_rq(strcut rq* max_rq, struct rq* min_rq, struct task_struct* target){
 	// step 1 : dequeue
-	// step 2 : enqueue
-	// step 3 : other operations
+	dequeue_task(max_rq,target,0);
+	// step 2 : other operations
+	set_task_cpu(p,min_rq->cpu);
+	// step 3 : enqueue
+	enqueue_task(min_rq,target,0);
 }
 
 static void load_balance_wrr(void /*struct rq *rq*/){
@@ -198,12 +223,13 @@ static void load_balance_wrr(void /*struct rq *rq*/){
 	//NOTE NOTE NOTE lock unlock handling
 
 	struct rq* max_rq, min_rq;
-	struct sched_wrr_entity target_to_be_load_balanced;
+	struct task_struct target_to_be_load_balanced;
 
 	set_wrr_max_and_min_rq(max_rq,min_rq);
 
+	//NOTE Exception Handling : max_rq same as min_rq, no need to load balance
 	if(max_rq == min_rq)
-		//NOTE exception handling
+		return;
 
 	target_to_be_load_balanced = get_wrr_sched_entity_to_be_load_balanced(max_rq,min_rq);
 
