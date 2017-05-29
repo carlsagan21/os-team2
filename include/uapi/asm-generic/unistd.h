@@ -693,6 +693,10 @@ __SYSCALL(__NR_kcmp, sys_kcmp)
 #define __NR_finit_module 273
 __SYSCALL(__NR_finit_module, sys_finit_module)
 
+#define __NR_sched_setweight 380
+__SYSCALL(__NR_set_gps_location, set_gps_location)
+
+
 #undef __NR_syscalls
 #define __NR_syscalls 274
 
