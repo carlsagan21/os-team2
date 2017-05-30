@@ -1,3 +1,4 @@
+#include <linux/kernel.h>
 #include <linux/gps.h>
 #include <linux/compiler.h>
 

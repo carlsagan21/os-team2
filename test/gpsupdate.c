@@ -1,3 +1,5 @@
+#include <stdio.h>
+// #include <sys/syscall.h>
 #include <linux/gps.h>
 
 #define __NR_set_gps_location 380
