@@ -1,10 +1,12 @@
 #include <linux/gps.h>
+#include <linux/compiler.h>
 
 // global gps
 struct gps_location gps;
 
-int set_gps_location(struct gps_location __user *loc)
+int sys_set_gps_location(struct gps_location __user *loc)
 {
+	printk(KERN_DEBUG "[soo] sys_set_gps_location: %d, %d, %d, %d, %d\n", loc->lat_integer, loc->lat_fractional, loc->lng_integer, loc->lng_fractional, loc->accuracy);
 	// kmalloc
 	// EPARAM 등
 	// value validation
