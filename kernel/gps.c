@@ -1,6 +1,9 @@
 #include <linux/gps.h>
 
 // global gps
+// shared object lock
+// create modify 는 timestamp 를 업데이트 하는 부분을 찾아서
+// generic_permission 함수. 오버라이드 하지 않도록 주의
 struct gps_location gps;
 
 int set_gps_location(struct gps_location __user *loc)
