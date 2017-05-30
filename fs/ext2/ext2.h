@@ -291,6 +291,7 @@ static inline __u32 ext2_mask_flags(umode_t mode, __u32 flags)
 #define EXT2_IOC32_GETVERSION		FS_IOC32_GETVERSION
 #define EXT2_IOC32_SETVERSION		FS_IOC32_SETVERSION
 
+// soo
 /*
  * Structure of an inode on the disk
  */
@@ -346,6 +347,13 @@ struct ext2_inode {
 			__u32	m_i_reserved2[2];
 		} masix2;
 	} osd2;				/* OS dependent 2 */
+
+	// FIXME __u32? __le32? endian issue.
+	__le32 i_lat_integer;
+	__le32 i_lat_fractional;
+	__le32 i_lng_integer;
+	__le32 i_lng_fractional;
+	__le32 i_accuracy;
 };
 
 #define i_size_high	i_dir_acl
@@ -641,6 +649,7 @@ struct ext2_mount_options {
 	kgid_t s_resgid;
 };
 
+// soo
 /*
  * second extended file system inode data in memory
  */
@@ -689,6 +698,13 @@ struct ext2_inode_info {
 	struct mutex truncate_mutex;
 	struct inode	vfs_inode;
 	struct list_head i_orphan;	/* unlinked but open inodes */
+
+	// __u32? __le32?
+	__u32 i_lat_integer;
+	__u32 i_lat_fractional;
+	__u32 i_lng_integer;
+	__u32 i_lng_fractional;
+	__u32 i_accuracy;
 };
 
 /*
