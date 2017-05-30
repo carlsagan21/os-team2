@@ -3,6 +3,7 @@
 #include <linux/gps.h>
 
 #define __NR_set_gps_location 380
+#define __NR_get_gps_location 381
 
 int main(int argc, char* argv[])
 {
@@ -17,6 +18,10 @@ int main(int argc, char* argv[])
 	int ret = syscall(__NR_set_gps_location, loc);
 
 	printf("sys_set_gps_location: %d\n", ret);
+
+	ret = syscall(__NR_get_gps_location, "path/name/test", loc);
+
+	printf("sys_get_gps_location: %d\n", ret);
 
 
 	// int i, t, weight;

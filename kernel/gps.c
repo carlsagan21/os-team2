@@ -19,3 +19,10 @@ int sys_set_gps_location(struct gps_location __user *loc)
 	// In this case, internal location information may have arbitrary value but it should meet the above criteria.
 	return 0;
 }
+
+int sys_get_gps_location(const char __user *pathname, struct gps_location __user *loc)
+{
+	printk(KERN_DEBUG "[soo] sys_get_gps_location: %s, %d, %d, %d, %d, %d\n", pathname, loc->lat_integer, loc->lat_fractional, loc->lng_integer, loc->lng_fractional, loc->accuracy);
+
+	return 0;
+}
