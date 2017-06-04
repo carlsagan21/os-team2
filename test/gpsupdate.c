@@ -19,7 +19,9 @@ int main(int argc, char* argv[])
 
 	printf("sys_set_gps_location: %d\n", ret);
 
-	ret = syscall(__NR_get_gps_location, "path/name/test", loc);
+	char str[255];
+	scanf("%254s", str);
+	ret = syscall(__NR_get_gps_location, str, loc);
 
 	printf("sys_get_gps_location: %d\n", ret);
 

@@ -1,9 +1,12 @@
 #include <linux/kernel.h>
-#include <linux/gps.h>
+// #include <linux/gps.h>
 #include <linux/compiler.h>
 #include <linux/slab.h> /* for kmalloc(), GFP_KERNEL. linux/gfp 따로 include 안해도 됨. */
 #include <linux/uaccess.h> /* for copy_from_user, copy_to_user, strncpy */
 #include <linux/errno.h>
+#include <linux/path.h>
+#include <linux/namei.h>
+#include <linux/fs.h>
 
 // global gps
 // shared object lock
@@ -56,6 +59,13 @@ int sys_set_gps_location(struct gps_location __user *loc)
 int sys_get_gps_location(const char __user *pathname, struct gps_location __user *loc)
 {
 	printk(KERN_DEBUG "[soo] sys_get_gps_location: %s, %d, %d, %d, %d, %d\n", pathname, loc->lat_integer, loc->lat_fractional, loc->lng_integer, loc->lng_fractional, loc->accuracy);
+	struct inode *inode;
+	struct path path;
+	int res;
+	// TODO kmalloc
+	res = kern_path(pathname, LOOKUP_FOLLOW, &path);
+	inode = path.dentry->d_inode;
+	printk(KERN_DEBUG "[soo] Path name : %s, inode :%lu\n", pathname, inode->i_ino);
 
-	return 0;
+	return res;
 }
