@@ -1,0 +1,844 @@
+diff --git a/.gitignore b/.gitignore
+new file mode 100644
+index 0000000..422a32d
+--- /dev/null
++++ b/.gitignore
+@@ -0,0 +1,4 @@
++*.o
++*.cmd
++*.order
++
+diff --git a/README b/README
+index e69de29..b7f1f35 100644
+--- a/README
++++ b/README
+@@ -0,0 +1,6 @@
++We consulted the following links:
++https://stackoverflow.com/questions/27869570/retrieving-inode-struct-given-the-path-to-a-file
++https://www.kernel.org/doc/Documentation/printk-formats.txt
++http://www-numi.fnal.gov/offline_software/srt_public_context/WebDocs/Errors/unix_system_errors.html
++https://stackoverflow.com/questions/2099070/how-can-i-allocate-memory-in-the-linux-kernel-for-a-char-type-string
++http://www.makelinux.net/ldd3/chp-3-sect-3
+\ No newline at end of file
+diff --git a/flo-kernel/arch/arm/include/asm/unistd.h b/flo-kernel/arch/arm/include/asm/unistd.h
+index 512cd14..7d44d6c 100644
+--- a/flo-kernel/arch/arm/include/asm/unistd.h
++++ b/flo-kernel/arch/arm/include/asm/unistd.h
+@@ -404,7 +404,8 @@
+ #define __NR_setns			(__NR_SYSCALL_BASE+375)
+ #define __NR_process_vm_readv		(__NR_SYSCALL_BASE+376)
+ #define __NR_process_vm_writev		(__NR_SYSCALL_BASE+377)
+-
++#define __NR_set_gps_location		(__NR_SYSCALL_BASE+378)
++#define __NR_get_gps_location		(__NR_SYSCALL_BASE+379)
+ /*
+  * The following SWIs are ARM private.
+  */
+diff --git a/flo-kernel/arch/arm/kernel/calls.S b/flo-kernel/arch/arm/kernel/calls.S
+index 463ff4a..be37ee9 100644
+--- a/flo-kernel/arch/arm/kernel/calls.S
++++ b/flo-kernel/arch/arm/kernel/calls.S
+@@ -387,6 +387,8 @@
+ /* 375 */	CALL(sys_setns)
+ 		CALL(sys_process_vm_readv)
+ 		CALL(sys_process_vm_writev)
++		CALL(sys_set_gps_location)
++		CALL(sys_get_gps_location)
+ #ifndef syscalls_counted
+ .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
+ #define syscalls_counted
+diff --git a/flo-kernel/fs/ext4/Makefile b/flo-kernel/fs/ext4/Makefile
+index 56fd8f8..5876d2c 100644
+--- a/flo-kernel/fs/ext4/Makefile
++++ b/flo-kernel/fs/ext4/Makefile
+@@ -7,7 +7,7 @@ obj-$(CONFIG_EXT4_FS) += ext4.o
+ ext4-y	:= balloc.o bitmap.o dir.o file.o fsync.o ialloc.o inode.o page-io.o \
+ 		ioctl.o namei.o super.o symlink.o hash.o resize.o extents.o \
+ 		ext4_jbd2.o migrate.o mballoc.o block_validity.o move_extent.o \
+-		mmp.o indirect.o
++		mmp.o indirect.o ext4_gps.o
+ 
+ ext4-$(CONFIG_EXT4_FS_XATTR)		+= xattr.o xattr_user.o xattr_trusted.o
+ ext4-$(CONFIG_EXT4_FS_POSIX_ACL)	+= acl.o
+diff --git a/flo-kernel/fs/ext4/acl.c b/flo-kernel/fs/ext4/acl.c
+index a5c29bb..1c0ebb7 100644
+--- a/flo-kernel/fs/ext4/acl.c
++++ b/flo-kernel/fs/ext4/acl.c
+@@ -203,6 +203,7 @@ ext4_set_acl(handle_t *handle, struct inode *inode, int type,
+ 				return error;
+ 			else {
+ 				inode->i_ctime = ext4_current_time(inode);
++				vfs_set_gps_location(inode);
+ 				ext4_mark_inode_dirty(handle, inode);
+ 				if (error == 0)
+ 					acl = NULL;
+diff --git a/flo-kernel/fs/ext4/ext4.h b/flo-kernel/fs/ext4/ext4.h
+index 0e01e90..bb4c2e6 100644
+--- a/flo-kernel/fs/ext4/ext4.h
++++ b/flo-kernel/fs/ext4/ext4.h
+@@ -673,6 +673,10 @@ struct ext4_inode {
+ 	__le32  i_crtime;       /* File Creation time */
+ 	__le32  i_crtime_extra; /* extra FileCreationtime (nsec << 2 | epoch) */
+ 	__le32  i_version_hi;	/* high 32 bits for 64-bit version */
++	__le64  i_latitude;
++	__le64  i_longitude;
++	__le32  i_accuracy;
++	__le32  i_coord_age;
+ };
+ 
+ struct move_extent {
+@@ -908,6 +912,11 @@ struct ext4_inode_info {
+ 	 */
+ 	tid_t i_sync_tid;
+ 	tid_t i_datasync_tid;
++	__u64  i_latitude;
++	__u64  i_longitude;
++	__u32  i_accuracy;
++	__u32  i_coord_age;
++	rwlock_t  i_gps_lock;
+ };
+ 
+ /*
+@@ -957,7 +966,7 @@ struct ext4_inode_info {
+ #define EXT4_MOUNT_BLOCK_VALIDITY	0x20000000 /* Block validity checking */
+ #define EXT4_MOUNT_DISCARD		0x40000000 /* Issue DISCARD requests */
+ #define EXT4_MOUNT_INIT_INODE_TABLE	0x80000000 /* Initialize uninitialized itables */
+-
++#define EXT4_MOUNT_GPS_AWARE_INODE	0x2000000
+ #define EXT4_MOUNT2_EXPLICIT_DELALLOC	0x00000001 /* User explicitly
+ 						      specified delalloc */
+ 
+@@ -2367,6 +2376,10 @@ extern void ext4_resize_end(struct super_block *sb);
+ 
+ #endif	/* __KERNEL__ */
+ 
++/*  gps.c */
++extern long ext4_set_gps_location(struct inode *inode);
++extern long ext4_get_gps_location(struct inode *, struct gps_location *);
++
+ #include "ext4_extents.h"
+ 
+ #endif	/* _EXT4_H */
+diff --git a/flo-kernel/fs/ext4/ext4_gps.c b/flo-kernel/fs/ext4/ext4_gps.c
+new file mode 100644
+index 0000000..69d4b5c
+--- /dev/null
++++ b/flo-kernel/fs/ext4/ext4_gps.c
+@@ -0,0 +1,60 @@
++#include <linux/gps.h>
++#include <linux/time.h>
++#include "ext4.h"
++
++long ext4_set_gps_location(struct inode *inode)
++{
++	struct gps_location loc;
++	struct ext4_inode_info *iinfo = EXT4_I(inode);
++	long ts;
++
++	if (!test_opt(inode->i_sb, GPS_AWARE_INODE))
++		return -ENODEV;
++	kget_gps_location(&loc, &ts);
++	ts = CURRENT_TIME_SEC.tv_sec - ts;
++
++	write_lock(&iinfo->i_gps_lock);
++	memcpy(&iinfo->i_latitude, &loc.latitude, sizeof(long long));
++	memcpy(&iinfo->i_longitude, &loc.longitude, sizeof(long long));
++	memcpy(&iinfo->i_accuracy, &loc.accuracy, sizeof(long));
++	memcpy(&iinfo->i_coord_age, &ts, sizeof(long));
++	write_unlock(&iinfo->i_gps_lock);
++
++	return 0;
++}
++
++long ext4_get_gps_location(struct inode *inode, struct gps_location *location)
++{
++	struct gps_location tmp_loc;
++	struct ext4_inode_info *iinfo = EXT4_I(inode);
++	long coord_age;
++	__u64 longitude, latitude;
++	__u32 accuracy;
++
++	if (!test_opt(inode->i_sb, GPS_AWARE_INODE))
++		return -ENODEV;
++
++
++	read_lock(&iinfo->i_gps_lock);
++	memcpy(&tmp_loc.latitude, &iinfo->i_latitude, sizeof(long long));
++	memcpy(&tmp_loc.longitude, &iinfo->i_longitude, sizeof(long long));
++	memcpy(&tmp_loc.accuracy, &iinfo->i_accuracy, sizeof(long));
++	memcpy(location, &tmp_loc, sizeof(tmp_loc));
++	coord_age = *(long *) &iinfo->i_coord_age;
++	read_unlock(&iinfo->i_gps_lock);
++
++	/*
++	 * this is a hack to handle the case of a file with no data.
++	 * if someone really were visit the exact spot (0.0, 0.0)
++	 * and their device were accurate down to 0.0, this would
++	 * be wrong. but that seems basically impossible
++	 */
++	memcpy(&longitude, &tmp_loc.longitude, sizeof(__u64));
++	memcpy(&latitude, &tmp_loc.latitude, sizeof(__u64));
++	memcpy(&accuracy, &tmp_loc.accuracy, sizeof(__u32));
++	if (latitude == 0 && longitude == 0 && accuracy == 0)
++		return -ENODEV;
++
++	return coord_age;
++}
++
+diff --git a/flo-kernel/fs/ext4/file.c b/flo-kernel/fs/ext4/file.c
+index cb70f18..9d04539 100644
+--- a/flo-kernel/fs/ext4/file.c
++++ b/flo-kernel/fs/ext4/file.c
+@@ -258,5 +258,7 @@ const struct inode_operations ext4_file_inode_operations = {
+ #endif
+ 	.get_acl	= ext4_get_acl,
+ 	.fiemap		= ext4_fiemap,
++	.set_gps_location = ext4_set_gps_location,
++	.get_gps_location = ext4_get_gps_location,
+ };
+ 
+diff --git a/flo-kernel/fs/ext4/inode.c b/flo-kernel/fs/ext4/inode.c
+index e99ad77..92660f6 100644
+--- a/flo-kernel/fs/ext4/inode.c
++++ b/flo-kernel/fs/ext4/inode.c
+@@ -3659,6 +3659,12 @@ struct inode *ext4_iget(struct super_block *sb, unsigned long ino)
+ 	ext4_clear_state_flags(ei);	/* Only relevant on 32-bit archs */
+ 	ei->i_dir_start_lookup = 0;
+ 	ei->i_dtime = le32_to_cpu(raw_inode->i_dtime);
++	if (test_opt(inode->i_sb, GPS_AWARE_INODE)) {
++		ei->i_latitude = le64_to_cpu(raw_inode->i_latitude);
++		ei->i_longitude = le64_to_cpu(raw_inode->i_longitude);
++		ei->i_accuracy = le32_to_cpu(raw_inode->i_accuracy);
++		ei->i_coord_age = le32_to_cpu(raw_inode->i_coord_age);
++	}
+ 	/* We now have enough fields to check if the inode was active or not.
+ 	 * This is needed because nfsd might try to access dead inodes
+ 	 * the test is that same one that e2fsck uses
+@@ -3915,7 +3921,16 @@ static int ext4_do_update_inode(handle_t *handle,
+ 	if (ext4_inode_blocks_set(handle, raw_inode, ei))
+ 		goto out_brelse;
+ 	raw_inode->i_dtime = cpu_to_le32(ei->i_dtime);
++	if (test_opt(inode->i_sb, GPS_AWARE_INODE)) {
++		raw_inode->i_latitude = cpu_to_le64(ei->i_latitude);
++		raw_inode->i_longitude = cpu_to_le64(ei->i_longitude);
++		raw_inode->i_accuracy = cpu_to_le32(ei->i_accuracy);
++		raw_inode->i_coord_age = cpu_to_le32(ei->i_coord_age);
++	}
+ 	raw_inode->i_flags = cpu_to_le32(ei->i_flags & 0xFFFFFFFF);
++
++	vfs_set_gps_location(inode);
++
+ 	if (EXT4_SB(inode->i_sb)->s_es->s_creator_os !=
+ 	    cpu_to_le32(EXT4_OS_HURD))
+ 		raw_inode->i_file_acl_high =
+diff --git a/flo-kernel/fs/ext4/namei.c b/flo-kernel/fs/ext4/namei.c
+index 349d7b3..d9cf7d9 100644
+--- a/flo-kernel/fs/ext4/namei.c
++++ b/flo-kernel/fs/ext4/namei.c
+@@ -34,9 +34,8 @@
+ #include <linux/quotaops.h>
+ #include <linux/buffer_head.h>
+ #include <linux/bio.h>
+-#include "ext4.h"
+ #include "ext4_jbd2.h"
+-
++#include "ext4.h"
+ #include "xattr.h"
+ #include "acl.h"
+ 
+@@ -1763,6 +1762,7 @@ retry:
+ 		ext4_set_aops(inode);
+ 		err = ext4_add_nondir(handle, dentry, inode);
+ 	}
++	vfs_set_gps_location(inode);
+ 	ext4_journal_stop(handle);
+ 	if (err == -ENOSPC && ext4_should_retry_alloc(dir->i_sb, &retries))
+ 		goto retry;
+@@ -1839,6 +1839,7 @@ retry:
+ 	inode->i_op = &ext4_dir_inode_operations;
+ 	inode->i_fop = &ext4_dir_operations;
+ 	inode->i_size = EXT4_I(inode)->i_disksize = inode->i_sb->s_blocksize;
++	vfs_set_gps_location(inode);
+ 	dir_block = ext4_bread(handle, inode, 0, 1, &err);
+ 	if (!dir_block)
+ 		goto out_clear_inode;
+@@ -2225,6 +2226,7 @@ static int ext4_unlink(struct inode *dir, struct dentry *dentry)
+ 	if (!inode->i_nlink)
+ 		ext4_orphan_add(handle, inode);
+ 	inode->i_ctime = ext4_current_time(inode);
++	vfs_set_gps_location(inode);
+ 	ext4_mark_inode_dirty(handle, inode);
+ 	retval = 0;
+ 
+@@ -2364,6 +2366,7 @@ retry:
+ 		ext4_handle_sync(handle);
+ 
+ 	inode->i_ctime = ext4_current_time(inode);
++	vfs_set_gps_location(inode);
+ 	ext4_inc_count(handle, inode);
+ 	ihold(inode);
+ 
+@@ -2473,6 +2476,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
+ 		new_dir->i_version++;
+ 		new_dir->i_ctime = new_dir->i_mtime =
+ 					ext4_current_time(new_dir);
++		vfs_set_gps_location(new_dir);
+ 		ext4_mark_inode_dirty(handle, new_dir);
+ 		BUFFER_TRACE(new_bh, "call ext4_handle_dirty_metadata");
+ 		retval = ext4_handle_dirty_metadata(handle, new_dir, new_bh);
+@@ -2489,6 +2493,7 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
+ 	 * rename.
+ 	 */
+ 	old_inode->i_ctime = ext4_current_time(old_inode);
++	ext4_set_gps_location(old_inode);
+ 	ext4_mark_inode_dirty(handle, old_inode);
+ 
+ 	/*
+@@ -2522,8 +2527,10 @@ static int ext4_rename(struct inode *old_dir, struct dentry *old_dentry,
+ 	if (new_inode) {
+ 		ext4_dec_count(handle, new_inode);
+ 		new_inode->i_ctime = ext4_current_time(new_inode);
++		ext4_set_gps_location(new_inode);
+ 	}
+ 	old_dir->i_ctime = old_dir->i_mtime = ext4_current_time(old_dir);
++	ext4_set_gps_location(old_dir);
+ 	ext4_update_dx_flag(old_dir);
+ 	if (dir_bh) {
+ 		PARENT_INO(dir_bh->b_data, new_dir->i_sb->s_blocksize) =
+@@ -2587,6 +2594,8 @@ const struct inode_operations ext4_dir_inode_operations = {
+ #endif
+ 	.get_acl	= ext4_get_acl,
+ 	.fiemap         = ext4_fiemap,
++	.set_gps_location = ext4_set_gps_location,
++	.get_gps_location = ext4_get_gps_location,
+ };
+ 
+ const struct inode_operations ext4_special_inode_operations = {
+@@ -2598,4 +2607,6 @@ const struct inode_operations ext4_special_inode_operations = {
+ 	.removexattr	= generic_removexattr,
+ #endif
+ 	.get_acl	= ext4_get_acl,
++	.set_gps_location = ext4_set_gps_location,
++	.get_gps_location = ext4_get_gps_location,
+ };
+diff --git a/flo-kernel/fs/ext4/super.c b/flo-kernel/fs/ext4/super.c
+index e1fb1d5..46063f4 100644
+--- a/flo-kernel/fs/ext4/super.c
++++ b/flo-kernel/fs/ext4/super.c
+@@ -977,6 +977,9 @@ static void ext4_destroy_inode(struct inode *inode)
+ 
+ static void init_once(void *foo)
+ {
++	long fzero = 0;
++	long long dzero = 0;
++
+ 	struct ext4_inode_info *ei = (struct ext4_inode_info *) foo;
+ 
+ 	INIT_LIST_HEAD(&ei->i_orphan);
+@@ -985,6 +988,12 @@ static void init_once(void *foo)
+ #endif
+ 	init_rwsem(&ei->i_data_sem);
+ 	inode_init_once(&ei->vfs_inode);
++	/* W4118 HW6 Initialization*/
++	rwlock_init(&ei->i_gps_lock);
++	memcpy(&ei->i_latitude, &dzero, sizeof(dzero));
++	memcpy(&ei->i_longitude, &dzero, sizeof(dzero));
++	memcpy(&ei->i_accuracy, &dzero, sizeof(fzero));
++	memcpy(&ei->i_coord_age, &dzero, sizeof(fzero));
+ }
+ 
+ static int init_inodecache(void)
+@@ -1186,6 +1195,7 @@ enum {
+ 	Opt_inode_readahead_blks, Opt_journal_ioprio,
+ 	Opt_dioread_nolock, Opt_dioread_lock,
+ 	Opt_discard, Opt_nodiscard, Opt_init_itable, Opt_noinit_itable,
++	Opt_gps_aware_inode,
+ };
+ 
+ static const match_table_t tokens = {
+@@ -1264,6 +1274,7 @@ static const match_table_t tokens = {
+ 	{Opt_removed, "reservation"},	/* mount option from ext2/3 */
+ 	{Opt_removed, "noreservation"}, /* mount option from ext2/3 */
+ 	{Opt_removed, "journal=%u"},	/* mount option from ext2/3 */
++	{Opt_gps_aware_inode, "gps_aware_inode"}, /* mount option for team5 */
+ 	{Opt_err, NULL},
+ };
+ 
+@@ -1439,6 +1450,7 @@ static const struct mount_opts {
+ 	{Opt_jqfmt_vfsold, QFMT_VFS_OLD, MOPT_QFMT},
+ 	{Opt_jqfmt_vfsv0, QFMT_VFS_V0, MOPT_QFMT},
+ 	{Opt_jqfmt_vfsv1, QFMT_VFS_V1, MOPT_QFMT},
++	{Opt_gps_aware_inode, EXT4_MOUNT_GPS_AWARE_INODE, MOPT_SET},
+ 	{Opt_err, 0, 0}
+ };
+ 
+@@ -1498,6 +1510,10 @@ static int handle_mount_opt(struct super_block *sb, char *opt, int token,
+ 			return -1;
+ 		*journal_ioprio = IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, arg);
+ 		return 1;
++	case Opt_gps_aware_inode:
++		set_opt(sb, GPS_AWARE_INODE);
++		sbi->s_mount_flags |= EXT4_MOUNT_GPS_AWARE_INODE;
++		return 1;
+ 	}
+ 
+ 	for (m = ext4_mount_opts; m->token != Opt_err; m++) {
+diff --git a/flo-kernel/fs/ext4/symlink.c b/flo-kernel/fs/ext4/symlink.c
+index ed9354a..141a75f 100644
+--- a/flo-kernel/fs/ext4/symlink.c
++++ b/flo-kernel/fs/ext4/symlink.c
+@@ -41,6 +41,8 @@ const struct inode_operations ext4_symlink_inode_operations = {
+ 	.listxattr	= ext4_listxattr,
+ 	.removexattr	= generic_removexattr,
+ #endif
++	.set_gps_location = ext4_set_gps_location,
++	.get_gps_location = ext4_get_gps_location,
+ };
+ 
+ const struct inode_operations ext4_fast_symlink_inode_operations = {
+@@ -52,5 +54,7 @@ const struct inode_operations ext4_fast_symlink_inode_operations = {
+ 	.getxattr	= generic_getxattr,
+ 	.listxattr	= ext4_listxattr,
+ 	.removexattr	= generic_removexattr,
++	.set_gps_location = ext4_set_gps_location,
++	.get_gps_location = ext4_get_gps_location,
+ #endif
+ };
+diff --git a/flo-kernel/fs/ext4/xattr.c b/flo-kernel/fs/ext4/xattr.c
+index e88748e..8d10182 100644
+--- a/flo-kernel/fs/ext4/xattr.c
++++ b/flo-kernel/fs/ext4/xattr.c
+@@ -1050,6 +1050,7 @@ ext4_xattr_set_handle(handle_t *handle, struct inode *inode, int name_index,
+ 	if (!error) {
+ 		ext4_xattr_update_super_block(handle, inode->i_sb);
+ 		inode->i_ctime = ext4_current_time(inode);
++		vfs_set_gps_location(inode);
+ 		if (!value)
+ 			ext4_clear_inode_state(inode, EXT4_STATE_NO_EXPAND);
+ 		error = ext4_mark_iloc_dirty(handle, inode, &is.iloc);
+diff --git a/flo-kernel/fs/namei.c b/flo-kernel/fs/namei.c
+index c427919..90f89eb 100644
+--- a/flo-kernel/fs/namei.c
++++ b/flo-kernel/fs/namei.c
+@@ -3468,6 +3468,36 @@ const struct inode_operations page_symlink_inode_operations = {
+ 	.put_link	= page_put_link,
+ };
+ 
++long vfs_get_gps_location(struct inode *inode, struct gps_location *location)
++{
++	long dage;
++
++	if (!inode->i_op->get_gps_location)
++		return -EPERM;
++
++	spin_lock(&inode->i_lock);
++	dage = inode->i_op->get_gps_location(inode, location);
++	spin_unlock(&inode->i_lock);
++
++	return dage;
++}
++
++long vfs_set_gps_location(struct inode *inode)
++{
++	if (!inode->i_op->set_gps_location)
++		return -EPERM;
++
++	spin_lock(&inode->i_lock);
++	if (inode->i_op->set_gps_location(inode) < 0) {
++		spin_unlock(&inode->i_lock);
++		return -EFAULT;
++	}
++
++	spin_unlock(&inode->i_lock);
++
++	return 0;
++}
++
+ EXPORT_SYMBOL(user_path_at);
+ EXPORT_SYMBOL(follow_down_one);
+ EXPORT_SYMBOL(follow_down);
+@@ -3499,3 +3529,5 @@ EXPORT_SYMBOL(vfs_symlink);
+ EXPORT_SYMBOL(vfs_unlink);
+ EXPORT_SYMBOL(dentry_unhash);
+ EXPORT_SYMBOL(generic_readlink);
++EXPORT_SYMBOL(vfs_get_gps_location);
++EXPORT_SYMBOL(vfs_set_gps_location)
+diff --git a/flo-kernel/include/linux/fs.h b/flo-kernel/include/linux/fs.h
+index 093f0b8..76cd155 100644
+--- a/flo-kernel/include/linux/fs.h
++++ b/flo-kernel/include/linux/fs.h
+@@ -10,7 +10,7 @@
+ #include <linux/ioctl.h>
+ #include <linux/blk_types.h>
+ #include <linux/types.h>
+-
++#include <linux/gps.h>
+ /*
+  * It's silly to have NR_OPEN bigger than NR_FILE, but you can change
+  * the file limit at runtime and only root can increase the per-process
+@@ -1665,8 +1665,14 @@ struct inode_operations {
+ 	void (*truncate_range)(struct inode *, loff_t, loff_t);
+ 	int (*fiemap)(struct inode *, struct fiemap_extent_info *, u64 start,
+ 		      u64 len);
++	long (*set_gps_location)(struct inode *);
++	long (*get_gps_location)(struct inode *, struct gps_location *);
+ } ____cacheline_aligned;
+ 
++/* W4118 VFS helper functions */
++extern long vfs_get_gps_location(struct inode *, struct gps_location *);
++extern long vfs_set_gps_location(struct inode *);
++
+ struct seq_file;
+ 
+ ssize_t rw_copy_check_uvector(int type, const struct iovec __user * uvector,
+diff --git a/flo-kernel/include/linux/gps.h b/flo-kernel/include/linux/gps.h
+new file mode 100644
+index 0000000..b40ae33
+--- /dev/null
++++ b/flo-kernel/include/linux/gps.h
+@@ -0,0 +1,11 @@
++#ifndef _LINUX_GPS_H
++#define _LINUX_GPS_H
++
++struct gps_location {
++	double latitude;
++	double longitude;
++	float  accuracy;  /* in meters */
++};
++
++int kget_gps_location(struct gps_location *, long *);
++#endif
+\ No newline at end of file
+diff --git a/flo-kernel/include/linux/syscalls.h b/flo-kernel/include/linux/syscalls.h
+index 3de3acb..9fc9db8 100644
+--- a/flo-kernel/include/linux/syscalls.h
++++ b/flo-kernel/include/linux/syscalls.h
+@@ -76,6 +76,7 @@ struct file_handle;
+ #include <linux/quota.h>
+ #include <linux/key.h>
+ #include <trace/syscall.h>
++#include <linux/gps.h>
+ 
+ #define __SC_DECL1(t1, a1)	t1 a1
+ #define __SC_DECL2(t2, a2, ...) t2 a2, __SC_DECL1(__VA_ARGS__)
+@@ -857,5 +858,6 @@ asmlinkage long sys_process_vm_writev(pid_t pid,
+ 				      const struct iovec __user *rvec,
+ 				      unsigned long riovcnt,
+ 				      unsigned long flags);
+-
++asmlinkage long sys_set_gps_location(struct gps_location __user *loc);
++asmlinkage long sys_get_gps_location(const char __user *pathname, struct gps_location __user *loc);
+ #endif
+diff --git a/flo-kernel/kernel/Makefile b/flo-kernel/kernel/Makefile
+index cb41b95..02d2562 100644
+--- a/flo-kernel/kernel/Makefile
++++ b/flo-kernel/kernel/Makefile
+@@ -10,7 +10,7 @@ obj-y     = fork.o exec_domain.o panic.o printk.o \
+ 	    kthread.o wait.o kfifo.o sys_ni.o posix-cpu-timers.o mutex.o \
+ 	    hrtimer.o rwsem.o nsproxy.o srcu.o semaphore.o \
+ 	    notifier.o ksysfs.o cred.o \
+-	    async.o range.o groups.o
++	    async.o range.o groups.o gps.o
+ 
+ ifdef CONFIG_FUNCTION_TRACER
+ # Do not trace debug files and internal ftrace files
+diff --git a/flo-kernel/kernel/gps.c b/flo-kernel/kernel/gps.c
+new file mode 100644
+index 0000000..afc71f2
+--- /dev/null
++++ b/flo-kernel/kernel/gps.c
+@@ -0,0 +1,85 @@
++#include <linux/fs.h>
++#include <linux/gps.h>
++#include <linux/slab.h>
++#include <linux/namei.h>
++#include <linux/errno.h>
++#include <linux/kernel.h>
++#include <linux/uaccess.h>
++#include <linux/syscalls.h>
++#include <linux/errno.h>
++#include <linux/dcache.h>
++
++static DEFINE_RWLOCK(cur_gloc_lock);
++
++static struct gps_location cur_gloc = {
++	.latitude = 0,
++	.longitude = 0,
++	.accuracy = 0
++};
++
++static long upd_tim_stm;
++
++int kget_gps_location(struct gps_location *rloc, long *ts)
++{
++	read_lock(&cur_gloc_lock);
++	memcpy(rloc, &cur_gloc, sizeof(cur_gloc));
++	*ts = upd_tim_stm;
++	read_unlock(&cur_gloc_lock);
++
++	return 0;
++}
++
++SYSCALL_DEFINE1(set_gps_location, struct gps_location __user *, loc)
++{
++	struct gps_location tmp_loc;
++
++	if (current_uid() != 0)
++		return -EACCES;
++
++	if (loc == NULL)
++		return -EINVAL;
++
++	if (copy_from_user(&tmp_loc, loc, sizeof(tmp_loc)))
++		return -EFAULT;
++
++	write_lock(&cur_gloc_lock);
++	memcpy(&cur_gloc, &tmp_loc, sizeof(tmp_loc));
++	upd_tim_stm = CURRENT_TIME_SEC.tv_sec;
++	printk("Daemon set data at %ld\n", upd_tim_stm);
++	write_unlock(&cur_gloc_lock);
++
++	return 0;
++}
++
++SYSCALL_DEFINE2(get_gps_location, const char __user *,
++				path_name, struct gps_location __user *, loc)
++{
++	struct gps_location tmp_loc;
++	struct path fp;
++	struct inode *inode;
++	int status;
++	int cage = 0;
++	long accuracy;
++
++	if (loc == NULL)
++		return -EINVAL;
++
++	if (user_path_at(AT_FDCWD, path_name, LOOKUP_FOLLOW, &fp) < 0)
++		return -EFAULT;
++
++	inode = fp.dentry->d_inode;
++	if (inode_permission(inode, MAY_READ) < 0)
++		return -EACCES;
++
++	cage = vfs_get_gps_location(inode, &tmp_loc);
++	status = copy_to_user(loc, &tmp_loc, sizeof(tmp_loc));
++	if (status < 0)
++		return -EFAULT;
++
++	memcpy(&accuracy, &tmp_loc.accuracy, sizeof(accuracy));
++	if (accuracy == -1)
++		return -ENODEV;
++
++	return cage;
++}
++
+diff --git a/hmwk6.fs b/hmwk6.fs
+new file mode 100644
+index 0000000..5c18dd9
+Binary files /dev/null and b/hmwk6.fs differ
+diff --git a/userspace/file_loc/file_loc.c b/userspace/file_loc/file_loc.c
+index f149c74..39e3780 100644
+--- a/userspace/file_loc/file_loc.c
++++ b/userspace/file_loc/file_loc.c
+@@ -1,6 +1,84 @@
+ #include "file_loc.h"
++#include <string.h>
++#include <stdio.h>
++#include <stdlib.h>
++#include <ctype.h>
++#include <errno.h>
++
++#define GPS_LOCATION_FILE "/data/media/0/gps_location.txt"
++#define STR_LEN 200
+ 
+ int main(int argc, char **argv)
+ {
++	char *opt, *path, *url;
++	char copt[STR_LEN];
++	int dage, i, slen;
++	size_t br = STR_LEN;
++	struct gps_location rloc;
++
++	opt = (char *)malloc(STR_LEN * sizeof(char));
++	url = "http://maps.google.com/maps?q=";
++
++	if (argc != 0) {
++		path = argv[1];
++		dage = get_gps_location(path, &rloc);
++
++		if (dage < 0) {
++			printf("Error! Error code is %d.\n", dage);
++			return 0;
++		}
++
++		printf("File name GPS Stat: %s", opt);
++		printf("Latitude : %f\n", rloc.latitude);
++		printf("Longitude : %f\n", rloc.longitude);
++		printf("Data Accuracy: %f\n", rloc.accuracy);
++		printf("Google Map Location: %s%f,%f\n",
++				url, rloc.latitude, rloc.longitude);
++		printf("Data age: %d\n", dage);
++
++		return 0;
++	}
++
++	while (strncmp(copt, "exit", 4) != 0) {
++		printf("Enter path name: ");
++		slen = getline(&opt, &br, stdin);
++
++		if (slen > 0) {
++			path = (char *)malloc(slen * sizeof(char));
++			strncpy(path, opt, slen - 1);
++			path[slen - 1] = '\0';
++		}
++
++		i = 0;
++		while (i < STR_LEN) {
++			copt[i] = tolower(opt[i]);
++			i++;
++		}
++
++		if (strncmp(copt, "exit", 4) != 0) {
++			printf("Path: %s\n", path);
++			rloc.latitude = 0;
++			rloc.longitude = 0;
++			rloc.accuracy = 0;
++
++			dage = get_gps_location(path, &rloc);
++			free(path);
++
++			if (dage < 0 && strncmp(copt, "exit", 4) != 0) {
++				printf("Error! Error code is %d.\n", dage);
++				continue;
++			}
++
++			printf("File name GPS Stat: %s", opt);
++			printf("Latitude : %f\n", rloc.latitude);
++			printf("Longitude : %f\n", rloc.longitude);
++			printf("Data Accuracy: %f\n", rloc.accuracy);
++			printf("Google Map Location: %s%f,%f\n",
++				url, rloc.latitude, rloc.longitude);
++			printf("Data age: %d\n", dage);
++		}
++	}
++	free(opt);
++
+ 	return 0;
+ }
+diff --git a/userspace/file_loc/file_loc.h b/userspace/file_loc/file_loc.h
+index ad6dd31..cf8599f 100644
+--- a/userspace/file_loc/file_loc.h
++++ b/userspace/file_loc/file_loc.h
+@@ -8,6 +8,7 @@
+  * Homework 6 - Geo Tagged File System
+  */
+ #include <sys/syscall.h>
++#include <unistd.h>
+ 
+ struct gps_location {
+ 	double latitude;
+diff --git a/userspace/gpsd/gpsd.c b/userspace/gpsd/gpsd.c
+index c2a6018..9396580 100644
+--- a/userspace/gpsd/gpsd.c
++++ b/userspace/gpsd/gpsd.c
+@@ -1,7 +1,82 @@
+ #include "gpsd.h"
++#include <stdio.h>
++#include <stdlib.h>
++#include <sys/types.h>
++#include <sys/stat.h>
++
++#define LIN_LEN 100
++
++static int poll_gps(void)
++{
++	double latitude;
++	double longitude;
++	float accuracy;
++	char str[100];
++
++	struct gps_location loc;
++	FILE *fd = fopen(GPS_LOCATION_FILE, "r");
++
++	if (!fd) {
++		perror("Error! Can not open gps_location file.\n");
++		accuracy = -1;
++	}
++
++	if (fgets(str, LIN_LEN, fd) != NULL)
++		sscanf(str, "%lf", &latitude);
++	else
++		accuracy = -1;
++
++	if (fgets(str, LIN_LEN, fd) != NULL)
++		sscanf(str, "%lf", &longitude);
++	else
++		accuracy = -1;
++
++	if (fgets(str, LIN_LEN, fd) != NULL)
++		sscanf(str, "%f", &accuracy);
++	else
++		accuracy = -1;
++
++	fclose(fd);
++
++	loc.latitude = latitude;
++	loc.longitude = longitude;
++	loc.accuracy = accuracy;
++
++	set_gps_location(&loc);
++
++	return 0;
++}
+ 
+ int main(int argc, char *argv[])
+ {
++	pid_t pid;
++
++	pid = fork();
++
++	if (pid < 0) {
++		perror("Error! Fail to fork.\n");
++		exit(EXIT_FAILURE);
++	}
++
++	if (pid > 0)
++		exit(EXIT_SUCCESS);
++
++	if (setsid() < 0) {
++		perror("Error ! Fail to setsid\n");
++		exit(EXIT_FAILURE);
++	}
++	chdir("/data/misc");
++	umask(0);
++	printf("%d", pid);
++	close(0);
++	close(1);
++	close(2);
++
++	while (1) {
++		poll_gps();
++		usleep(1000);
++	}
++
+ 	return 0;
+ }
+ 
+diff --git a/userspace/gpsd/gpsd.h b/userspace/gpsd/gpsd.h
+index 43828b2..4089847 100644
+--- a/userspace/gpsd/gpsd.h
++++ b/userspace/gpsd/gpsd.h
+@@ -8,7 +8,7 @@
+  * Homework 6
+  *
+  */
+-
++#include <unistd.h>
+ #include <sys/syscall.h>
+ 
+ struct gps_location {
+diff --git a/userspace/hmwk6.fs b/userspace/hmwk6.fs
+new file mode 100644
+index 0000000..91f3e2f
+Binary files /dev/null and b/userspace/hmwk6.fs differ
