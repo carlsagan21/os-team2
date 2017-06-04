@@ -372,6 +372,7 @@ struct ext4_new_group_input {
 #define EXT4_IOC_GROUP_ADD		_IOW('f', 8,struct ext4_new_group_input)
 #define EXT4_IOC_RESIZE_FS		_IOW('f', 16, __u64)
 
+// soo fixed
 /*
  * Structure of an inode on the disk
  */
@@ -418,6 +419,13 @@ struct ext2_inode {
 			__u32	h_i_author;
 		} hurd2;
 	} osd2;				/* OS dependent 2 */
+
+	// FIXME __u32? __le32? endian issue.
+	__le32 i_lat_integer;
+	__le32 i_lat_fractional;
+	__le32 i_lng_integer;
+	__le32 i_lng_fractional;
+	__le32 i_accuracy;
 };
 
 /*
@@ -466,6 +474,14 @@ struct ext2_inode_large {
 			__u32	h_i_author;
 		} hurd2;
 	} osd2;				/* OS dependent 2 */
+
+	// FIXME __u32? __le32? endian issue.
+	__le32 i_lat_integer;
+	__le32 i_lat_fractional;
+	__le32 i_lng_integer;
+	__le32 i_lng_fractional;
+	__le32 i_accuracy;
+
 	__u16	i_extra_isize;
 	__u16	i_checksum_hi;	/* crc32c(uuid+inum+inode) */
 	__u32	i_ctime_extra;	/* extra Change time (nsec << 2 | epoch) */
