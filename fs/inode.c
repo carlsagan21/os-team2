@@ -113,6 +113,8 @@ int proc_nr_inodes(ctl_table *table, int write,
 }
 #endif
 
+// soo inode init
+// TODO geo 정보 초기화해주기.
 /**
  * inode_init_always - perform inode structure intialisation
  * @sb: superblock inode belongs to

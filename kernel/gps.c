@@ -53,19 +53,54 @@ int sys_set_gps_location(struct gps_location __user *loc)
 	// accuracy should be nonnegative integer and the units of accuracy are in meter.
 	// From system boot to the first sys_gps_location system call, location is uninitialized.
 	// In this case, internal location information may have arbitrary value but it should meet the above criteria.
+
+	kfree(k_loc);
 	return 0;
 }
 
 int sys_get_gps_location(const char __user *pathname, struct gps_location __user *loc)
 {
-	printk(KERN_DEBUG "[soo] sys_get_gps_location: %s, %d, %d, %d, %d, %d\n", pathname, loc->lat_integer, loc->lat_fractional, loc->lng_integer, loc->lng_fractional, loc->accuracy);
 	struct inode *inode;
 	struct path path;
 	int res;
-	// TODO kmalloc
-	res = kern_path(pathname, LOOKUP_FOLLOW, &path);
-	inode = path.dentry->d_inode;
-	printk(KERN_DEBUG "[soo] Path name : %s, inode :%lu\n", pathname, inode->i_ino);
+	char *k_pathname;
+	struct gps_location *k_loc;
 
+	printk(KERN_DEBUG "[soo] sys_get_gps_location: %s, %d, %d, %d, %d, %d\n", pathname, loc->lat_integer, loc->lat_fractional, loc->lng_integer, loc->lng_fractional, loc->accuracy);
+
+	// kmalloc
+	k_pathname = kmalloc(sizeof(char)*255, GFP_KERNEL);
+	if (k_pathname == NULL)
+		return -ENOMEM;
+
+	res = copy_from_user(k_pathname, pathname, sizeof(char)*255);
+	if (res != 0)
+		return -EFAULT;
+
+	k_loc = kmalloc(sizeof(struct gps_location), GFP_KERNEL);
+	if (k_loc == NULL)
+		return -ENOMEM;
+
+	res = copy_from_user(k_loc, loc, sizeof(struct gps_location));
+	if (res != 0)
+		return -EFAULT;
+
+	res = kern_path(k_pathname, LOOKUP_FOLLOW, &path);
+	inode = path.dentry->d_inode;
+	printk(KERN_DEBUG "[soo] Path name : %s, inode :%lu\n", k_pathname, inode->i_ino);
+
+	if (inode->i_op->get_gps_location) {
+		int ret;
+		ret = inode->i_op->get_gps_location(inode, k_loc);
+	}
+	// if (p->sched_class->migrate_task_rq)
+	// 	p->sched_class->migrate_task_rq(p, new_cpu);
+
+	res = copy_to_user(loc, k_loc, sizeof(struct gps_location));
+	if (res != 0)
+		return -EFAULT;
+
+	kfree(k_pathname);
+	kfree(k_loc);
 	return res;
 }
