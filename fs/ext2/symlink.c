@@ -28,6 +28,35 @@ static void *ext2_follow_link(struct dentry *dentry, struct nameidata *nd)
 	return NULL;
 }
 
+// int ext2_set_gps_location4(struct inode *inode)
+// {
+// 	// copy the current device location to the inode
+// 	printk(KERN_DEBUG "[soo] symlink ext2_set_gps_location\n");
+// 	return 0;
+// }
+//
+// int ext2_get_gps_location4(struct inode *inode, struct gps_location *loc)
+// {
+// 	// copy the inode location to the buffer
+// 	printk(KERN_DEBUG "[soo] symlink ext2_get_gps_location\n");
+// 	return 0;
+// }
+//
+// int ext2_set_gps_location5(struct inode *inode)
+// {
+// 	// copy the current device location to the inode
+// 	printk(KERN_DEBUG "[soo] fast ext2_set_gps_location\n");
+// 	return 0;
+// }
+//
+// int ext2_get_gps_location5(struct inode *inode, struct gps_location *loc)
+// {
+// 	// copy the inode location to the buffer
+// 	printk(KERN_DEBUG "[soo] fast ext2_get_gps_location\n");
+// 	return 0;
+// }
+
+// NOTE soo inode_operations ext2_symlink 정의
 const struct inode_operations ext2_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= page_follow_link_light,
@@ -39,8 +68,12 @@ const struct inode_operations ext2_symlink_inode_operations = {
 	.listxattr	= ext2_listxattr,
 	.removexattr	= generic_removexattr,
 #endif
+	.set_gps_location = ext2_set_gps_location,
+	.get_gps_location = ext2_get_gps_location,
 };
- 
+
+
+// NOTE soo inode_operations ext2_fast_symlink 정의
 const struct inode_operations ext2_fast_symlink_inode_operations = {
 	.readlink	= generic_readlink,
 	.follow_link	= ext2_follow_link,
@@ -51,4 +84,6 @@ const struct inode_operations ext2_fast_symlink_inode_operations = {
 	.listxattr	= ext2_listxattr,
 	.removexattr	= generic_removexattr,
 #endif
+	.set_gps_location = ext2_set_gps_location,
+	.get_gps_location = ext2_get_gps_location,
 };

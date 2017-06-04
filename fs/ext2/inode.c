@@ -1306,7 +1306,7 @@ void ext2_get_inode_flags(struct ext2_inode_info *ei)
 		ei->i_flags |= EXT2_DIRSYNC_FL;
 }
 
-// soo
+// NOTE soo
 struct inode *ext2_iget (struct super_block *sb, unsigned long ino)
 {
 	struct ext2_inode_info *ei;
@@ -1539,7 +1539,7 @@ static int __ext2_write_inode(struct inode *inode, int do_sync)
 	return err;
 }
 
-// soo
+// NOTE soo
 int ext2_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	return __ext2_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);

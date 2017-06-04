@@ -59,7 +59,7 @@ static struct dentry *ext2_lookup(struct inode * dir, struct dentry *dentry, uns
 {
 	struct inode * inode;
 	ino_t ino;
-	
+
 	if (dentry->d_name.len > EXT2_NAME_LEN)
 		return ERR_PTR(-ENAMETOOLONG);
 
@@ -84,7 +84,7 @@ struct dentry *ext2_get_parent(struct dentry *child)
 	if (!ino)
 		return ERR_PTR(-ENOENT);
 	return d_obtain_alias(ext2_iget(child->d_inode->i_sb, ino));
-} 
+}
 
 /*
  * By the time this is called, we already have created
@@ -92,7 +92,7 @@ struct dentry *ext2_get_parent(struct dentry *child)
  * is so far negative - it has no inode.
  *
  * If the create succeeds, we fill in the inode information
- * with d_instantiate(). 
+ * with d_instantiate().
  */
 static int ext2_create (struct inode * dir, struct dentry * dentry, umode_t mode, bool excl)
 {
@@ -380,6 +380,34 @@ out:
 	return err;
 }
 
+// int ext2_set_gps_location3(struct inode *inode)
+// {
+// 	// copy the current device location to the inode
+// 	printk(KERN_DEBUG "[soo] dir ext2_set_gps_location\n");
+// 	return 0;
+// }
+//
+// int ext2_get_gps_location3(struct inode *inode, struct gps_location *loc)
+// {
+// 	// copy the inode location to the buffer
+// 	printk(KERN_DEBUG "[soo] dir ext2_get_gps_location\n");
+// 	return 0;
+// }
+// int ext2_set_gps_location2(struct inode *inode)
+// {
+// 	// copy the current device location to the inode
+// 	printk(KERN_DEBUG "[soo] special ext2_set_gps_location\n");
+// 	return 0;
+// }
+//
+// int ext2_get_gps_location2(struct inode *inode, struct gps_location *loc)
+// {
+// 	// copy the inode location to the buffer
+// 	printk(KERN_DEBUG "[soo] special ext2_get_gps_location\n");
+// 	return 0;
+// }
+
+// NOTE soo inode_operations ext2_dir 정의
 const struct inode_operations ext2_dir_inode_operations = {
 	.create		= ext2_create,
 	.lookup		= ext2_lookup,
@@ -398,8 +426,11 @@ const struct inode_operations ext2_dir_inode_operations = {
 #endif
 	.setattr	= ext2_setattr,
 	.get_acl	= ext2_get_acl,
+	.set_gps_location = ext2_set_gps_location,
+	.get_gps_location = ext2_get_gps_location,
 };
 
+// NOTE soo inode_operations ext2_special 정의
 const struct inode_operations ext2_special_inode_operations = {
 #ifdef CONFIG_EXT2_FS_XATTR
 	.setxattr	= generic_setxattr,
@@ -409,4 +440,6 @@ const struct inode_operations ext2_special_inode_operations = {
 #endif
 	.setattr	= ext2_setattr,
 	.get_acl	= ext2_get_acl,
+	.set_gps_location = ext2_set_gps_location,
+	.get_gps_location = ext2_get_gps_location,
 };

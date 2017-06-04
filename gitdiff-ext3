@@ -11,6 +11,8 @@ index 512cd14..845ca9c 100644
 
  /*
   * The following SWIs are ARM private.
+
+
 diff --git a/flo-kernel/arch/arm/kernel/calls.S b/flo-kernel/arch/arm/kernel/calls.S
 index 463ff4a..be37ee9 100644
 --- a/flo-kernel/arch/arm/kernel/calls.S
@@ -24,6 +26,8 @@ index 463ff4a..be37ee9 100644
  #ifndef syscalls_counted
  .equ syscalls_padding, ((NR_syscalls + 3) & ~3) - NR_syscalls
  #define syscalls_counted
+
+
 diff --git a/flo-kernel/fs/ext3/ext3.h b/flo-kernel/fs/ext3/ext3.h
 index b6515fd..0fa1278 100644
 --- a/flo-kernel/fs/ext3/ext3.h
@@ -60,6 +64,8 @@ index b6515fd..0fa1278 100644
 +int ext3_get_gps_location(struct inode *, struct gps_location *);
 +
  #include <trace/events/ext3.h>
+
+
 diff --git a/flo-kernel/fs/ext3/file.c b/flo-kernel/fs/ext3/file.c
 index 25cb413..93999c4 100644
 --- a/flo-kernel/fs/ext3/file.c
@@ -85,14 +91,6 @@ index d7940b2..a5efb5c 100644
  #include "ext3.h"
  #include "namei.h"
  #include "xattr.h"
-@@ -38,6 +40,7 @@
- #define NAMEI_RA_SIZE        (NAMEI_RA_CHUNKS * NAMEI_RA_BLOCKS)
- #define NAMEI_RA_INDEX(c,b)  (((c) * NAMEI_RA_BLOCKS) + (b))
-
-+
- static struct buffer_head *ext3_append(handle_t *handle,
- 					struct inode *inode,
- 					u32 *block, int *err)
 @@ -1709,10 +1712,15 @@ retry:
  		handle->h_sync = 1;
 
@@ -282,6 +280,8 @@ index d7940b2..a5efb5c 100644
  };
 
  const struct inode_operations ext3_special_inode_operations = {
+
+
 diff --git a/flo-kernel/fs/ext3/super.c b/flo-kernel/fs/ext3/super.c
 index cf0b592..6b86909 100644
 --- a/flo-kernel/fs/ext3/super.c
@@ -294,6 +294,8 @@ index cf0b592..6b86909 100644
  }
 
  static int init_inodecache(void)
+
+
 diff --git a/flo-kernel/fs/ext3/symlink.c b/flo-kernel/fs/ext3/symlink.c
 index 6b01c3e..30348ce 100644
 --- a/flo-kernel/fs/ext3/symlink.c
@@ -316,20 +318,6 @@ index 6b01c3e..30348ce 100644
  #ifdef CONFIG_EXT3_FS_XATTR
  	.setxattr	= generic_setxattr,
  	.getxattr	= generic_getxattr,
-diff --git a/flo-kernel/fs/namei.c b/flo-kernel/fs/namei.c
-index c427919..18c3c65 100644
---- a/flo-kernel/fs/namei.c
-+++ b/flo-kernel/fs/namei.c
-@@ -2072,8 +2072,10 @@ int vfs_create(struct inode *dir, struct dentry *dentry, umode_t mode,
- 	if (error)
- 		return error;
- 	error = dir->i_op->create(dir, dentry, mode, nd);
-+
- 	if (!error)
- 		fsnotify_create(dir, dentry);
-+
- 	return error;
- }
 
 diff --git a/flo-kernel/fs/read_write.c b/flo-kernel/fs/read_write.c
 index ffc99d2..731eb26 100644
@@ -362,6 +350,8 @@ index ffc99d2..731eb26 100644
  			fsnotify_modify(file);
  			add_wchar(current, ret);
  		}
+
+
 diff --git a/flo-kernel/include/linux/fs.h b/flo-kernel/include/linux/fs.h
 index 093f0b8..1013bdf 100644
 --- a/flo-kernel/include/linux/fs.h
@@ -383,6 +373,8 @@ index 093f0b8..1013bdf 100644
  } ____cacheline_aligned;
 
  struct seq_file;
+
+
 diff --git a/flo-kernel/include/linux/gps.h b/flo-kernel/include/linux/gps.h
 new file mode 100644
 index 0000000..e306436
@@ -418,6 +410,8 @@ index 0000000..e306436
 +int getKernLocationValue(struct gps_location_kern *);
 +
 +#endif
+
+
 diff --git a/flo-kernel/include/linux/magic.h b/flo-kernel/include/linux/magic.h
 index e15192c..0178725 100644
 --- a/flo-kernel/include/linux/magic.h
@@ -433,6 +427,8 @@ index e15192c..0178725 100644
  #define BTRFS_SUPER_MAGIC	0x9123683E
 diff --git a/flo-kernel/include/linux/syscalls.h b/flo-kernel/include/linux/syscalls.h
 index 3de3acb..c33db99 100644
+
+
 --- a/flo-kernel/include/linux/syscalls.h
 +++ b/flo-kernel/include/linux/syscalls.h
 @@ -75,6 +75,7 @@ struct file_handle;
@@ -452,6 +448,8 @@ index 3de3acb..c33db99 100644
 +asmlinkage long sys_get_gps_location(const char __user *pathnamem,
 +					struct gps_location __user *loc);
  #endif
+
+
 diff --git a/flo-kernel/kernel/Makefile b/flo-kernel/kernel/Makefile
 index cb41b95..02d2562 100644
 --- a/flo-kernel/kernel/Makefile
@@ -465,6 +463,8 @@ index cb41b95..02d2562 100644
 
  ifdef CONFIG_FUNCTION_TRACER
  # Do not trace debug files and internal ftrace files
+
+
 diff --git a/flo-kernel/kernel/gps.c b/flo-kernel/kernel/gps.c
 new file mode 100644
 index 0000000..146336e
@@ -560,31 +560,8 @@ index 0000000..146336e
 +
 +	return location_set;
 +}
-diff --git a/hmwk6.fs b/hmwk6.fs
-new file mode 100644
-index 0000000..88b2e41
-Binary files /dev/null and b/hmwk6.fs differ
-diff --git a/links.sh b/links.sh
-new file mode 100755
-index 0000000..c2d72a9
---- /dev/null
-+++ b/links.sh
-@@ -0,0 +1,11 @@
-+#! /bin/bash
-+adb shell ln -s /dev/block/loop0 /dev/loop0
-+adb shell ln -s /dev/block/loop1 /dev/loop1
-+adb shell ln -s /dev/block/loop2 /dev/loop2
-+adb shell ln -s /dev/block/loop3 /dev/loop3
-+adb shell ln -s /dev/block/loop4 /dev/loop4
-+adb shell ln -s /dev/block/loop5 /dev/loop5
-+adb shell ln -s /dev/block/loop6 /dev/loop6
-+adb shell ln -s /dev/block/loop7 /dev/loop7
-+adb push hmwk6.fs /data/misc
-+adb shell mount -o loop -t ext3 /data/misc/hmwk6.fs /data/misc/hmwk6
-diff --git a/userspace/GPSLocator.apk b/userspace/GPSLocator.apk
-new file mode 100644
-index 0000000..8b41e84
-Binary files /dev/null and b/userspace/GPSLocator.apk differ
+
+
 diff --git a/userspace/e2fsprogs/lib/ext2fs/ext2_fs.h b/userspace/e2fsprogs/lib/ext2fs/ext2_fs.h
 index dc3b2b2..acd10b1 100644
 --- a/userspace/e2fsprogs/lib/ext2fs/ext2_fs.h
@@ -613,40 +590,8 @@ index dc3b2b2..acd10b1 100644
  };
 
  /*
-diff --git a/userspace/file_loc/.gitignore b/userspace/file_loc/.gitignore
-new file mode 100644
-index 0000000..44680be
---- /dev/null
-+++ b/userspace/file_loc/.gitignore
-@@ -0,0 +1 @@
-+file_loc
-diff --git a/userspace/file_loc/Makefile b/userspace/file_loc/Makefile
-new file mode 100644
-index 0000000..5edcb12
---- /dev/null
-+++ b/userspace/file_loc/Makefile
-@@ -0,0 +1,21 @@
-+CC := arm-none-linux-gnueabi-gcc
-+LD := arm-none-linux-gnueabi-gcc
-+CFLAGS := -g -Wall -Werror -static
-+INCLUDE = -I. -I../../flo-kernel/usr/include -I../../flo-kernel/include -I../../flo-kernel/arch/arm/include
-+LDFLAGS := -static $(INCLUDE)
-+
-+OBJECTS := file_loc.o
-+
-+all: file_loc
-+
-+: $(OBJECTS)
-+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(OBJECTS)
-+
-+%.o: %.c
-+	$(CC) $(CFLAGS) -c $^
-+
-+clean:
-+	rm -f file_loc
-+	rm -f file_loc.o
-+
-+.PHONY: clean
+
+
 diff --git a/userspace/file_loc/file_loc.c b/userspace/file_loc/file_loc.c
 new file mode 100644
 index 0000000..9707569

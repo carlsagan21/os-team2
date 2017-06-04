@@ -291,7 +291,7 @@ static inline __u32 ext2_mask_flags(umode_t mode, __u32 flags)
 #define EXT2_IOC32_GETVERSION		FS_IOC32_GETVERSION
 #define EXT2_IOC32_SETVERSION		FS_IOC32_SETVERSION
 
-// soo
+// NOTE soo ext2_inode 정의
 /*
  * Structure of an inode on the disk
  */
@@ -394,6 +394,7 @@ struct ext2_inode {
 #define EXT2_MOUNT_RESERVATION		0x080000  /* Preallocation */
 
 
+// TODO soo may need this
 #define clear_opt(o, opt)		o &= ~EXT2_MOUNT_##opt
 #define set_opt(o, opt)			o |= EXT2_MOUNT_##opt
 #define test_opt(sb, opt)		(EXT2_SB(sb)->s_mount_opt & \
@@ -649,7 +650,7 @@ struct ext2_mount_options {
 	kgid_t s_resgid;
 };
 
-// soo
+// NOTE soo ext2_inode_info 정의. 메모리.
 /*
  * second extended file system inode data in memory
  */
@@ -696,15 +697,17 @@ struct ext2_inode_info {
 	 * ext2_reserve_window_node.
 	 */
 	struct mutex truncate_mutex;
-	struct inode	vfs_inode;
+	struct inode	vfs_inode; // NOTE soo inode in inode_info. def in fs.h. ext2_inode 와 다름.
 	struct list_head i_orphan;	/* unlinked but open inodes */
 
-	// __u32? __le32?
+	// FIXME __u32? __le32?
 	__u32 i_lat_integer;
 	__u32 i_lat_fractional;
 	__u32 i_lng_integer;
 	__u32 i_lng_fractional;
 	__u32 i_accuracy;
+
+	spinlock_t i_gps_lock;
 };
 
 /*
@@ -789,6 +792,15 @@ void ext2_msg(struct super_block *, const char *, const char *, ...);
 extern void ext2_update_dynamic_rev (struct super_block *sb);
 extern void ext2_write_super (struct super_block *);
 
+extern int ext2_set_gps_location(struct inode *);
+extern int ext2_get_gps_location(struct inode *, struct gps_location *);
+
+// NOTE soo inode_operations ext2 선언. 5개. file, dir, special, fast_symlink, symlink
+// file -> fs/ext2/file.c
+// dir -> fs/ext2/namei.c
+// special -> fs/ext2/namei.c
+// fast_symlink -> fs/ext2/symlink.c
+// symlink -> fs/ext2/symlink.c
 /*
  * Inodes and files operations
  */

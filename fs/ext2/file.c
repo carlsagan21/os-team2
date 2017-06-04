@@ -56,20 +56,6 @@ int ext2_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	return ret;
 }
 
-int ext2_set_gps_location(struct inode *in)
-{
-	// copy the current device location to the inode
-	printk(KERN_DEBUG "[soo] ext2_set_gps_location\n");
-	return 0;
-}
-
-int ext2_get_gps_location(struct inode *in, struct gps_location *loc)
-{
-	// copy the inode location to the buffer
-	printk(KERN_DEBUG "[soo] ext2_get_gps_location\n");
-	return 0;
-}
-
 /*
  * We have mostly NULL's here: the current defaults are ok for
  * the ext2 filesystem.
@@ -108,6 +94,21 @@ const struct file_operations ext2_xip_file_operations = {
 };
 #endif
 
+// int ext2_set_gps_location(struct inode *inode)
+// {
+// 	// copy the current device location to the inode
+// 	printk(KERN_DEBUG "[soo] file ext2_set_gps_location\n");
+// 	return 0;
+// }
+//
+// int ext2_get_gps_location(struct inode *inode, struct gps_location *loc)
+// {
+// 	// copy the inode location to the buffer
+// 	printk(KERN_DEBUG "[soo] file ext2_get_gps_location\n");
+// 	return 0;
+// }
+
+// NOTE soo inode_operations ext2_file 정의
 const struct inode_operations ext2_file_inode_operations = {
 #ifdef CONFIG_EXT2_FS_XATTR
 	.setxattr	= generic_setxattr,

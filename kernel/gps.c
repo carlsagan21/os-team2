@@ -86,15 +86,18 @@ int sys_get_gps_location(const char __user *pathname, struct gps_location __user
 		return -EFAULT;
 
 	res = kern_path(k_pathname, LOOKUP_FOLLOW, &path);
+	if (res != 0)
+		return -EFAULT;
+
 	inode = path.dentry->d_inode;
-	printk(KERN_DEBUG "[soo] Path name : %s, inode :%lu\n", k_pathname, inode->i_ino);
+	printk(KERN_DEBUG "[soo] Path name: %s, inode: %lu\n", k_pathname, inode->i_ino);
+
+	k_loc->lat_integer = 100000; // TODO remove. for test
 
 	if (inode->i_op->get_gps_location) {
 		int ret;
 		ret = inode->i_op->get_gps_location(inode, k_loc);
 	}
-	// if (p->sched_class->migrate_task_rq)
-	// 	p->sched_class->migrate_task_rq(p, new_cpu);
 
 	res = copy_to_user(loc, k_loc, sizeof(struct gps_location));
 	if (res != 0)

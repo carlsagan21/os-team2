@@ -23,7 +23,7 @@ int main(int argc, char* argv[])
 	scanf("%254s", str);
 	ret = syscall(__NR_get_gps_location, str, loc);
 
-	printf("sys_get_gps_location: %d\n", ret);
+	printf("sys_get_gps_location: %d, %d, %d, %d, %d, %d\n", ret, loc->lat_integer, loc->lat_fractional, loc->lng_integer, loc->lng_fractional, loc->accuracy);
 
 
 	// int i, t, weight;
